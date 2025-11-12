@@ -38,7 +38,10 @@ import cat.nilcm01.portam.ui.values.PaddingLarge
 import cat.nilcm01.portam.ui.values.PaddingMedium
 
 @Composable
-fun HomeScreen(modifier: Modifier = Modifier, onNavigateToCards: () -> Unit = {}) {
+fun HomeScreen(
+    modifier: Modifier = Modifier,
+    onNavigateToCards: () -> Unit = {}
+) {
     LazyVerticalGrid(
         modifier = modifier.fillMaxSize(),
         columns = GridCells.Fixed(2),

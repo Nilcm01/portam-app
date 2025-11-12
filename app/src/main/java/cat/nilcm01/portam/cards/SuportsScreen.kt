@@ -40,7 +40,8 @@ import cat.nilcm01.portam.ui.values.*
 @Composable
 fun SuportsScreen(
     modifier: Modifier = Modifier,
-    onBack: () -> Unit = {}
+    onBack: () -> Unit = {},
+    onNavigateToAddSuport: () -> Unit = {}
 ) {
     // Intercept system back / gesture and call the provided onBack lambda
     BackHandler(enabled = true) {
@@ -198,13 +199,19 @@ fun SuportsScreen(
                     )
                     .clickable(
                         onClick = {
-                            // TODO: Handle add new suport action
+                            onNavigateToAddSuport()
                         }
                     )
                     .padding(PaddingMedium),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
+                Icon(
+                    painter = painterResource(id = cat.nilcm01.portam.R.drawable.icon_add_circle),
+                    contentDescription = "Afegeix un nou suport",
+                    modifier = Modifier.size(IconSizeMediumSmall),
+                    tint = MaterialTheme.colorScheme.onPrimary
+                )
                 Text(
                     "Afegeix un nou suport",
                     color = MaterialTheme.colorScheme.onPrimary,
