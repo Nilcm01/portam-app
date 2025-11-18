@@ -25,9 +25,14 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
@@ -47,6 +52,12 @@ fun AddSuportScreen(
         onBack()
     }
 
+    var uid = ""
+
+    // Listen on the NFC reader and update the `uid` variable when a tag is read
+    // TODO: NFC
+
+    // Body
     Column(
         modifier = modifier
             .fillMaxSize(),
@@ -90,16 +101,31 @@ fun AddSuportScreen(
             )
         }
 
-        // Scrollable content area for suports
         Column(
             modifier = Modifier
-                .weight(1f) // constrain to remaining space so verticalScroll works
+                .weight(1f)
                 .verticalScroll(rememberScrollState())
                 .padding(PaddingLarge),
             verticalArrangement = Arrangement.Top,
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            // TODO
+            Text(
+                text = "Escriu el codi del suport o apropa'l a la part posterior del teu dispositiu per llegir-lo.",
+                style = MaterialTheme.typography.bodyLarge,
+                textAlign = TextAlign.Center,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+            Spacer(modifier = Modifier.height(24.dp))
+            // Input field
+            // Input field that syncs to the top-level `uid` in real time
+            var text by remember { mutableStateOf(uid) }
+            OutlinedTextField(
+                value = uid,
+                onValueChange = { uid = it },
+                label = { Text("Codi del suport") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
         }
     }
 }
