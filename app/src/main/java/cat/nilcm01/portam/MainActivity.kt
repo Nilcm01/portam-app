@@ -1,5 +1,7 @@
 package cat.nilcm01.portam
 
+import android.content.Intent
+import android.nfc.NfcAdapter
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -7,9 +9,6 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideIn
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -26,6 +25,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import cat.nilcm01.portam.cards.CardScreen
@@ -34,6 +34,7 @@ import cat.nilcm01.portam.home.HomeScreen
 import cat.nilcm01.portam.profile.ProfileScreen
 import cat.nilcm01.portam.titles.TitlesScreen
 import cat.nilcm01.portam.ui.theme.PortamTheme
+import cat.nilcm01.portam.utils.NfcHandler
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -41,21 +42,53 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.navigation
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
-import androidx.compose.animation.EnterTransition
-import androidx.compose.animation.ExitTransition
 import cat.nilcm01.portam.cards.AddSuportScreen
 
 
 class MainActivity : ComponentActivity() {
+    // Mutable state to hold the latest NFC tag UID
+    private val nfcTagUid = mutableStateOf<String?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        // Handle initial intent if launched via NFC
+        handleNfcIntent(intent)
+
         setContent {
             PortamTheme {
-                MainScreen()
+                MainScreen(nfcTagUid = nfcTagUid.value)
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleNfcIntent(intent)
+    }
+
+    private fun handleNfcIntent(intent: Intent?) {
+        if (intent?.action == NfcAdapter.ACTION_TAG_DISCOVERED ||
+            intent?.action == NfcAdapter.ACTION_TECH_DISCOVERED ||
+            intent?.action == NfcAdapter.ACTION_NDEF_DISCOVERED) {
+
+            val uid = NfcHandler.extractTagUid(intent)
+            if (uid != null) {
+                nfcTagUid.value = uid
+            }
+        }
+    }
+
+    fun getNfcHandler(): NfcHandler {
+        return NfcHandler(this)
+    }
+
+    fun consumeNfcTagUid(): String? {
+        val uid = nfcTagUid.value
+        nfcTagUid.value = null
+        return uid
     }
 }
 
@@ -88,7 +121,7 @@ private object Routes {
 }
 
 @Composable
-fun MainScreen() {
+fun MainScreen(nfcTagUid: String? = null) {
     val navController = rememberNavController()
 
     // Saber quina ruta estem per marcar la bottom bar
@@ -200,7 +233,8 @@ fun MainScreen() {
                 ) {
                     AddSuportScreen(
                         modifier = Modifier.fillMaxSize(),
-                        onBack = { navController.popBackStack() }
+                        onBack = { navController.popBackStack() },
+                        nfcTagUid = nfcTagUid
                     )
                 }
             }

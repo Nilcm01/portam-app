@@ -1,13 +1,10 @@
 package cat.nilcm01.portam.cards
 
-import android.R
-import android.widget.ScrollView
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.scrollable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -18,44 +15,66 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import cat.nilcm01.portam.ui.theme.ColorRed
+import cat.nilcm01.portam.MainActivity
 import cat.nilcm01.portam.ui.values.*
 
 @Composable
 fun AddSuportScreen(
     modifier: Modifier = Modifier,
-    onBack: () -> Unit = {}
+    onBack: () -> Unit = {},
+    nfcTagUid: String? = null
 ) {
     // Intercept system back / gesture and call the provided onBack lambda
     BackHandler(enabled = true) {
         onBack()
     }
 
-    var uid = ""
+    // State to hold the UID
+    var uid by remember { mutableStateOf("") }
 
-    // Listen on the NFC reader and update the `uid` variable when a tag is read
-    // TODO: NFC
+    val context = LocalContext.current
+    val activity = context as? MainActivity
+
+    // Update uid when a new NFC tag is detected
+    LaunchedEffect(nfcTagUid) {
+        if (nfcTagUid != null) {
+            uid = nfcTagUid
+            // Show toast notification
+            Toast.makeText(context, "Suport llegit", Toast.LENGTH_SHORT).show()
+            // Consume the NFC tag UID so it's not used again
+            activity?.consumeNfcTagUid()
+        }
+    }
+
+    // Enable/Disable NFC foreground dispatch
+    DisposableEffect(Unit) {
+        val nfcHandler = activity?.getNfcHandler()
+        nfcHandler?.enableForegroundDispatch()
+
+        onDispose {
+            nfcHandler?.disableForegroundDispatch()
+        }
+    }
 
     // Body
     Column(
@@ -116,9 +135,7 @@ fun AddSuportScreen(
                 color = MaterialTheme.colorScheme.onBackground
             )
             Spacer(modifier = Modifier.height(24.dp))
-            // Input field
-            // Input field that syncs to the top-level `uid` in real time
-            var text by remember { mutableStateOf(uid) }
+            // Input field that syncs to the uid state variable
             OutlinedTextField(
                 value = uid,
                 onValueChange = { uid = it },
