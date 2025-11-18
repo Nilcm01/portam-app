@@ -1,6 +1,8 @@
 package cat.nilcm01.portam.ui.theme
 
+import androidx.compose.material3.ColorScheme
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 
 // General colors
 
@@ -32,3 +34,22 @@ val ColorDarkBackground = ColorBlackTotal
 val ColorRed = Color(0xFFD32F2F)
 val ColorGreen = Color(0xFF388E3C)
 val ColorYellow = Color(0xFFFBC02D)
+
+// Transparent color
+val ColorTransparent = Color(0x00000000)
+
+// Definition of custom colors into the scheme
+private val ColorScheme.isLight: Boolean
+    get() = background.luminance() > 0.5
+
+val ColorScheme.transparent: Color
+    get() = ColorTransparent
+
+val ColorScheme.success: Color
+    get() = if (isLight) ColorGreen else Color(0xFF66BB6A)
+
+val ColorScheme.error: Color
+    get() = if (isLight) ColorRed else Color(0xFFEF5350)
+
+val ColorScheme.warning: Color
+    get() = if (isLight) ColorYellow else Color(0xFFFFEE58)
