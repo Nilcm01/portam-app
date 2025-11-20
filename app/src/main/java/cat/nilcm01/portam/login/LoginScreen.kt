@@ -4,6 +4,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -27,12 +28,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import cat.nilcm01.portam.ui.theme.success
 import cat.nilcm01.portam.ui.theme.transparent
 import cat.nilcm01.portam.ui.values.CornerRadiusMedium
 import cat.nilcm01.portam.ui.values.CornerRadiusSmall
@@ -150,19 +153,20 @@ fun LoginScreen(
     }
 
     val isEmailValid = isValidEmail(userLogin.email)
-
+    var loginEmpty by remember { mutableStateOf(false) }
 
     // View
     Column(
         modifier = Modifier
-            .fillMaxWidth()
-            .padding(PaddingLarge),
+            .fillMaxSize()
+            .padding(PaddingLarge)
+            .verticalScroll(
+                rememberScrollState()),
         verticalArrangement = Arrangement.Top,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         // Header
         Row(
-            // make header only as wide as the grid, not forcing full height
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(4.dp, 8.dp),
@@ -200,116 +204,209 @@ fun LoginScreen(
         else {
             // Showing the login form
             if (!showRegister) {
-                // Email input field
-                OutlinedTextField(
-                    value = userLogin.email,
-                    onValueChange = { userLogin = userLogin.copy(email = it) },
-                    label = { Text("Correu electrònic") },
-                    singleLine = true,
-                    enabled = step != Steps.Processing,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                    isError = !isEmailValid && userLogin.email.isNotEmpty(),
-                    supportingText = {
-                        if (!isEmailValid && userLogin.email.isNotEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    // Main login form content
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.Top,
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        // Subtitle
+                        Text(
+                            text = "Inicia la sessió al teu compte",
+                            style = MaterialTheme.typography.bodyLarge,
+                            textAlign = TextAlign.Center,
+                            color = MaterialTheme.colorScheme.onBackground,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Spacer(modifier = Modifier.height(24.dp))
+
+                        // Email input field
+                        OutlinedTextField(
+                            value = userLogin.email,
+                            onValueChange = { userLogin = userLogin.copy(email = it) },
+                            label = { Text("Correu electrònic") },
+                            singleLine = true,
+                            enabled = step != Steps.Processing,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                            isError = !isEmailValid && userLogin.email.isNotEmpty(),
+                            supportingText = {
+                                if (!isEmailValid && userLogin.email.isNotEmpty()) {
+                                    Text(
+                                        text = "Format de correu incorrecte.\nExemple: nom.cognom@domini.com",
+                                        color = MaterialTheme.colorScheme.error
+                                    )
+                                }
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(
+                                    MaterialTheme.colorScheme.transparent,
+                                    RoundedCornerShape(CornerRadiusSmall)
+                                )
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        OutlinedTextField(
+                            value = userLogin.password,
+                            onValueChange = { userLogin = userLogin.copy(password = it) },
+                            label = { Text("Clau de pas") },
+                            singleLine = true,
+                            enabled = step != Steps.Processing,
+                            visualTransformation = PasswordVisualTransformation(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(
+                                    MaterialTheme.colorScheme.transparent,
+                                    RoundedCornerShape(CornerRadiusSmall)
+                                )
+                        )
+                        // Login button
+                        Spacer(modifier = Modifier.height(32.dp))
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(
+                                    if (step != Steps.Processing) MaterialTheme.colorScheme.primary
+                                    else MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
+                                    RoundedCornerShape(CornerRadiusMedium)
+                                )
+                                .clickable(
+                                    enabled = step != Steps.Processing,
+                                    onClick = {
+                                        if (userLogin.email.isNotEmpty() &&
+                                            isEmailValid &&
+                                            userLogin.password.isNotEmpty()) {
+                                            step = Steps.Processing
+                                            loginEmpty = false
+                                        } else {
+                                            loginEmpty = true
+                                        }
+                                    }
+                                )
+                                .padding(PaddingMedium),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
                             Text(
-                                text = "Format de correu incorrecte.\nExemple: nom.cognom@domini.com",
-                                color = MaterialTheme.colorScheme.error
+                                "Inicia la sessió",
+                                color = if (step != Steps.Processing) MaterialTheme.colorScheme.onPrimary
+                                        else MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.5f),
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.fillMaxWidth()
                             )
                         }
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(
-                            MaterialTheme.colorScheme.transparent,
-                            RoundedCornerShape(CornerRadiusSmall)
-                        )
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-                OutlinedTextField(
-                    value = userLogin.password,
-                    onValueChange = { userLogin = userLogin.copy(password = it) },
-                    label = { Text("Clau de pas") },
-                    singleLine = true,
-                    enabled = step != Steps.Processing,
-                    visualTransformation = PasswordVisualTransformation(),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(
-                            MaterialTheme.colorScheme.transparent,
-                            RoundedCornerShape(CornerRadiusSmall)
-                        )
-                )
-                // Login button
-                Spacer(modifier = Modifier.height(24.dp))
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(
-                            MaterialTheme.colorScheme.primary,
-                            RoundedCornerShape(CornerRadiusMedium)
-                        )
-                        .clickable(
-                            onClick = {
-                                if (step != Steps.Processing &&
-                                    userLogin.email.isNotEmpty() &&
-                                    isEmailValid &&
-                                    userLogin.password.isNotEmpty()) {
-                                    step = Steps.Processing
-                                    }
-                            }
-                        )
-                        .padding(PaddingMedium),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        "Inicia la sessió",
-                        color = MaterialTheme.colorScheme.onPrimary,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
 
-                // Only show if Processing
-                if (step == Steps.Processing) {
-                    Spacer(modifier = Modifier.height(24.dp))
-                    Text(
-                        text = "Iniciant la sessió...",
-                        style = MaterialTheme.typography.bodyLarge,
-                        textAlign = TextAlign.Center,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    // Loading indicator
-                    Spacer(modifier = Modifier.height(16.dp))
-                    CircularProgressIndicator(
-                        color = MaterialTheme.colorScheme.primary
-                    )
+                        //// MESSAGES
 
-                    // API function call
-                    LaunchedEffect(Unit) {
-                        withContext(Dispatchers.IO) {
-                            loginApiResult = loginApiCall(userLogin)
+                        // Only show if Error
+                        if (step == Steps.Error) {
+                            Spacer(modifier = Modifier.height(32.dp))
+                            Text(
+                                text = "S'ha produït un error en iniciar la sessió." +
+                                        "\n\n" +
+                                        "Error ${loginApiResult?.code}: ${loginApiResult?.message?.get("ca")}",
+                                style = MaterialTheme.typography.bodyLarge,
+                                textAlign = TextAlign.Center,
+                                color = MaterialTheme.colorScheme.error,
+                                fontStyle = FontStyle.Italic
+                            )
                         }
-                        if (loginApiResult?.success == true) {
-                            step = Steps.Success
-                            onLoginSuccess()
-                        } else {
-                            step = Steps.Error
+
+                        // Only show if login is empty fields
+                        if (loginEmpty) {
+                            Spacer(modifier = Modifier.height(32.dp))
+                            Text(
+                                text = "Cal completar tots els camps",
+                                style = MaterialTheme.typography.bodyLarge,
+                                textAlign = TextAlign.Center,
+                                color = MaterialTheme.colorScheme.error,
+                                fontStyle = FontStyle.Italic
+                            )
+                        }
+
+                        //// END MESSAGES
+
+                        // Register button
+                        Spacer(modifier = Modifier.height(32.dp))
+                        Text(
+                            text = "No tens compte?",
+                            style = MaterialTheme.typography.bodyLarge,
+                            textAlign = TextAlign.Center,
+                            color = MaterialTheme.colorScheme.onBackground,
+                            fontStyle = FontStyle.Italic
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(
+                                    if (step != Steps.Processing) MaterialTheme.colorScheme.primary
+                                    else MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
+                                    RoundedCornerShape(CornerRadiusMedium)
+                                )
+                                .clickable(
+                                    enabled = step != Steps.Processing,
+                                    onClick = {
+                                        showRegister = true
+                                        step = Steps.Start
+                                    }
+                                )
+                                .padding(PaddingMedium),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                "Registra't",
+                                color = if (step != Steps.Processing) MaterialTheme.colorScheme.onPrimary
+                                        else MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.5f),
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.fillMaxWidth()
+                            )
                         }
                     }
-                }
 
-                // Only show if Error
-                else if (step == Steps.Error) {
-                    Spacer(modifier = Modifier.height(24.dp))
-                    Text(
-                        text = "S'ha produït un error en iniciar la sessió." +
-                                "\n\n" +
-                                "Error ${loginApiResult?.code}: ${loginApiResult?.message?.get("ca")}",
-                        style = MaterialTheme.typography.bodyLarge,
-                        textAlign = TextAlign.Center,
-                        color = MaterialTheme.colorScheme.error
-                    )
+                    // Processing overlay - shown on top when processing
+                    if (step == Steps.Processing) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .matchParentSize()
+                                .background(MaterialTheme.colorScheme.background.copy(alpha = 0.85f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                Text(
+                                    text = "Iniciant la sessió...",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    textAlign = TextAlign.Center,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    fontStyle = FontStyle.Italic
+                                )
+                                Spacer(modifier = Modifier.height(16.dp))
+                                CircularProgressIndicator(
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+
+                        // API function call
+                        LaunchedEffect(Unit) {
+                            withContext(Dispatchers.IO) {
+                                loginApiResult = loginApiCall(userLogin)
+                            }
+                            if (loginApiResult?.success == true) {
+                                step = Steps.Success
+                                onLoginSuccess()
+                            } else {
+                                step = Steps.Error
+                            }
+                        }
+                    }
                 }
             }
 

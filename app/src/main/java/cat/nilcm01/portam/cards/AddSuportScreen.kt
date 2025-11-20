@@ -35,6 +35,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -239,7 +240,8 @@ fun AddSuportScreen(
                     text = "Afegint el suport, si us plau espera...",
                     style = MaterialTheme.typography.bodyLarge,
                     textAlign = TextAlign.Center,
-                    color = MaterialTheme.colorScheme.primary
+                    color = MaterialTheme.colorScheme.primary,
+                    fontStyle = FontStyle.Italic
                 )
                 // Loading indicator
                 Spacer(modifier = Modifier.height(16.dp))
@@ -281,7 +283,8 @@ fun AddSuportScreen(
                             "Error ${suportApiResultGlobal?.code}: ${suportApiResultGlobal?.message}",
                     style = MaterialTheme.typography.bodyLarge,
                     textAlign = TextAlign.Center,
-                    color = MaterialTheme.colorScheme.error
+                    color = MaterialTheme.colorScheme.error,
+                    fontStyle = FontStyle.Italic
                 )
             }
         }
