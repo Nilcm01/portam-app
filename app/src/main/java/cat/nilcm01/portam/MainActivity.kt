@@ -26,6 +26,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import cat.nilcm01.portam.cards.CardScreen
@@ -43,6 +44,8 @@ import androidx.navigation.navigation
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import cat.nilcm01.portam.cards.AddSuportScreen
+import cat.nilcm01.portam.login.LoginScreen
+import cat.nilcm01.portam.utils.StorageManager
 
 
 class MainActivity : ComponentActivity() {
@@ -53,6 +56,8 @@ class MainActivity : ComponentActivity() {
         installSplashScreen()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        StorageManager.initialize(this)
 
         // Handle initial intent if launched via NFC
         handleNfcIntent(intent)
@@ -104,6 +109,9 @@ enum class BottomDestination(
 }
 
 private object Routes {
+    // LOGIN
+    const val Login = "login"
+
     // HOME
     const val Home = "home"
 
@@ -128,52 +136,57 @@ fun MainScreen(nfcTagUid: String? = null) {
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentDest = backStackEntry?.destination
 
+    // Check if we're on the Login screen
+    val isLoginScreen = currentDest?.route == Routes.Login
+
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         bottomBar = {
-            NavigationBar(
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary
-            ) {
-                val items = listOf(
-                    BottomDestination.HOME,
-                    BottomDestination.CARD_GRAPH,
-                    BottomDestination.TITLES,
-                    BottomDestination.PROFILE
-                )
-
-                items.forEach { destination ->
-                    val selected = currentDest?.hierarchy?.any { it.route == destination.route } == true ||
-                            // Per al cas del gràfic anidat de Card, marca com seleccionat si estem dins de qualsevol "card/*"
-                            (destination == BottomDestination.CARD_GRAPH &&
-                                    currentDest?.hierarchy?.any { it.route?.startsWith("card") == true } == true)
-
-                    NavigationBarItem(
-                        selected = selected,
-                        onClick = {
-                            navController.navigate(destination.route) {
-                                popUpTo(navController.graph.findStartDestination().id) {
-                                    saveState = true
-                                }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        },
-                        icon = {
-                            Icon(
-                                imageVector = destination.icon,
-                                contentDescription = destination.label
-                            )
-                        },
-                        label = { Text(text = destination.label) },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = MaterialTheme.colorScheme.onPrimary,
-                            selectedTextColor = MaterialTheme.colorScheme.onPrimary,
-                            unselectedIconColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.5f),
-                            unselectedTextColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.5f),
-                            indicatorColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.0f)
-                        )
+            if (!isLoginScreen) {
+                NavigationBar(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                ) {
+                    val items = listOf(
+                        BottomDestination.HOME,
+                        BottomDestination.CARD_GRAPH,
+                        BottomDestination.TITLES,
+                        BottomDestination.PROFILE
                     )
+
+                    items.forEach { destination ->
+                        val selected = currentDest?.hierarchy?.any { it.route == destination.route } == true ||
+                                // Per al cas del gràfic anidat de Card, marca com seleccionat si estem dins de qualsevol "card/*"
+                                (destination == BottomDestination.CARD_GRAPH &&
+                                        currentDest?.hierarchy?.any { it.route?.startsWith("card") == true } == true)
+
+                        NavigationBarItem(
+                            selected = selected,
+                            onClick = {
+                                navController.navigate(destination.route) {
+                                    popUpTo(navController.graph.findStartDestination().id) {
+                                        saveState = true
+                                    }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
+                            },
+                            icon = {
+                                Icon(
+                                    imageVector = destination.icon,
+                                    contentDescription = destination.label
+                                )
+                            },
+                            label = { Text(text = destination.label) },
+                            colors = NavigationBarItemDefaults.colors(
+                                selectedIconColor = MaterialTheme.colorScheme.onPrimary,
+                                selectedTextColor = MaterialTheme.colorScheme.onPrimary,
+                                unselectedIconColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.5f),
+                                unselectedTextColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.5f),
+                                indicatorColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.0f)
+                            )
+                        )
+                    }
                 }
             }
         }
@@ -181,11 +194,23 @@ fun MainScreen(nfcTagUid: String? = null) {
 
         NavHost(
             navController = navController,
-            startDestination = Routes.Home,
+            startDestination = Routes.Login,
             modifier = Modifier.padding(innerPadding),
             enterTransition = { fadeIn(tween(1)) },
             exitTransition = { fadeOut(tween(1)) }
         ) {
+            // LOGIN (top-level)
+            composable(Routes.Login) {
+                LoginScreen(
+                    modifier = Modifier.fillMaxSize(),
+                    onLoginSuccess = {
+                        navController.navigate(Routes.Home) {
+                            popUpTo(Routes.Login) { inclusive = true }
+                        }
+                    }
+                )
+            }
+
             // HOME (top-level)
             composable(Routes.Home) {
                 HomeScreen(

@@ -17,12 +17,24 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
 
-class StorageManager private constructor(context: Context) {
+object StorageManager {
 
-    val appContext = context.applicationContext
+    private const val SECURE_PREFS_NAME = "portam_secure_preferences"
+    private const val DATASTORE_NAME = "portam_datastore"
+
+    @Volatile
+    internal lateinit var appContext: Context
+
+    // Initialize StorageManager with context (call this once in Application.onCreate())
+    fun initialize(context: Context) {
+        if (!::appContext.isInitialized) {
+            appContext = context.applicationContext
+        }
+    }
 
     // Encrypted SharedPreferences for sensitive data
     private val securePrefs: SharedPreferences by lazy {
+        checkInitialized()
         val masterKey = MasterKey.Builder(appContext)
             .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
             .build()
@@ -36,24 +48,15 @@ class StorageManager private constructor(context: Context) {
         )
     }
 
-    companion object {
-        private const val SECURE_PREFS_NAME = "portam_secure_preferences"
-        private const val DATASTORE_NAME = "portam_datastore"
+    // DataStore extension property
+    internal val Context.dataStore: DataStore<Preferences> by preferencesDataStore(
+        name = DATASTORE_NAME
+    )
 
-        @Volatile
-        private var instance: StorageManager? = null
-
-        // Get singleton instance of StorageManager
-        fun getInstance(context: Context): StorageManager {
-            return instance ?: synchronized(this) {
-                instance ?: StorageManager(context).also { instance = it }
-            }
+    private fun checkInitialized() {
+        if (!::appContext.isInitialized) {
+            throw IllegalStateException("StorageManager must be initialized with a Context before use. Call StorageManager.initialize(context) first.")
         }
-
-        // DataStore extension property
-        val Context.dataStore: DataStore<Preferences> by preferencesDataStore(
-            name = DATASTORE_NAME
-        )
     }
 
 
@@ -62,64 +65,77 @@ class StorageManager private constructor(context: Context) {
 
     // String
     fun saveSecureString(key: String, value: String) {
+        checkInitialized()
         securePrefs.edit().putString(key, value).apply()
     }
 
     fun getSecureString(key: String, defaultValue: String? = null): String? {
+        checkInitialized()
         return securePrefs.getString(key, defaultValue)
     }
 
     // Bool
 
     fun saveSecureBoolean(key: String, value: Boolean) {
+        checkInitialized()
         securePrefs.edit().putBoolean(key, value).apply()
     }
 
     fun getSecureBoolean(key: String, defaultValue: Boolean = false): Boolean {
+        checkInitialized()
         return securePrefs.getBoolean(key, defaultValue)
     }
 
     // Int
 
     fun saveSecureInt(key: String, value: Int) {
+        checkInitialized()
         securePrefs.edit().putInt(key, value).apply()
     }
 
     fun getSecureInt(key: String, defaultValue: Int = 0): Int {
+        checkInitialized()
         return securePrefs.getInt(key, defaultValue)
     }
 
     // Long
 
     fun saveSecureLong(key: String, value: Long) {
+        checkInitialized()
         securePrefs.edit().putLong(key, value).apply()
     }
 
     fun getSecureLong(key: String, defaultValue: Long = 0L): Long {
+        checkInitialized()
         return securePrefs.getLong(key, defaultValue)
     }
 
     // Float
 
     fun saveSecureFloat(key: String, value: Float) {
+        checkInitialized()
         securePrefs.edit().putFloat(key, value).apply()
     }
 
     fun getSecureFloat(key: String, defaultValue: Float = 0f): Float {
+        checkInitialized()
         return securePrefs.getFloat(key, defaultValue)
     }
 
     // General
 
     fun removeSecure(key: String) {
+        checkInitialized()
         securePrefs.edit().remove(key).apply()
     }
 
     fun clearAllSecure() {
+        checkInitialized()
         securePrefs.edit().clear().apply()
     }
 
     fun containsSecure(key: String): Boolean {
+        checkInitialized()
         return securePrefs.contains(key)
     }
 
@@ -127,39 +143,93 @@ class StorageManager private constructor(context: Context) {
     //// DATASTORE (Modern Flow-based preferences)
 
 
-    // Save a value to DataStore (suspend function)
-    suspend fun <T> saveToDataStore(key: String, value: T) {
+    // Save String to DataStore
+    suspend fun saveStringToDataStore(key: String, value: String) {
+        checkInitialized()
         appContext.dataStore.edit { preferences ->
-            when (value) {
-                is String -> preferences[stringPreferencesKey(key)] = value
-                is Int -> preferences[intPreferencesKey(key)] = value
-                is Boolean -> preferences[booleanPreferencesKey(key)] = value
-                is Long -> preferences[longPreferencesKey(key)] = value
-                else -> throw IllegalArgumentException("Unsupported type: ${value?.let { it::class.simpleName }}")
-            }
+            preferences[stringPreferencesKey(key)] = value
         }
     }
 
-    // Get a value from DataStore as Flow
-    inline fun <reified T> getFromDataStoreFlow(key: String, defaultValue: T): Flow<T> {
+    // Get String from DataStore as Flow
+    fun getStringFromDataStoreFlow(key: String, defaultValue: String = ""): Flow<String> {
+        checkInitialized()
         return appContext.dataStore.data.map { preferences ->
-            when (T::class) {
-                String::class -> preferences[stringPreferencesKey(key)] as? T ?: defaultValue
-                Int::class -> preferences[intPreferencesKey(key)] as? T ?: defaultValue
-                Boolean::class -> preferences[booleanPreferencesKey(key)] as? T ?: defaultValue
-                Long::class -> preferences[longPreferencesKey(key)] as? T ?: defaultValue
-                else -> defaultValue
-            }
+            preferences[stringPreferencesKey(key)] ?: defaultValue
         }
     }
 
-    // Get a value from DataStore synchronously (suspend function)
-    suspend inline fun <reified T> getFromDataStore(key: String, defaultValue: T): T {
-        return getFromDataStoreFlow(key, defaultValue).first()
+    // Get String from DataStore synchronously
+    suspend fun getStringFromDataStore(key: String, defaultValue: String = ""): String {
+        return getStringFromDataStoreFlow(key, defaultValue).first()
+    }
+
+    // Save Int to DataStore
+    suspend fun saveIntToDataStore(key: String, value: Int) {
+        checkInitialized()
+        appContext.dataStore.edit { preferences ->
+            preferences[intPreferencesKey(key)] = value
+        }
+    }
+
+    // Get Int from DataStore as Flow
+    fun getIntFromDataStoreFlow(key: String, defaultValue: Int = 0): Flow<Int> {
+        checkInitialized()
+        return appContext.dataStore.data.map { preferences ->
+            preferences[intPreferencesKey(key)] ?: defaultValue
+        }
+    }
+
+    // Get Int from DataStore synchronously
+    suspend fun getIntFromDataStore(key: String, defaultValue: Int = 0): Int {
+        return getIntFromDataStoreFlow(key, defaultValue).first()
+    }
+
+    // Save Boolean to DataStore
+    suspend fun saveBooleanToDataStore(key: String, value: Boolean) {
+        checkInitialized()
+        appContext.dataStore.edit { preferences ->
+            preferences[booleanPreferencesKey(key)] = value
+        }
+    }
+
+    // Get Boolean from DataStore as Flow
+    fun getBooleanFromDataStoreFlow(key: String, defaultValue: Boolean = false): Flow<Boolean> {
+        checkInitialized()
+        return appContext.dataStore.data.map { preferences ->
+            preferences[booleanPreferencesKey(key)] ?: defaultValue
+        }
+    }
+
+    // Get Boolean from DataStore synchronously
+    suspend fun getBooleanFromDataStore(key: String, defaultValue: Boolean = false): Boolean {
+        return getBooleanFromDataStoreFlow(key, defaultValue).first()
+    }
+
+    // Save Long to DataStore
+    suspend fun saveLongToDataStore(key: String, value: Long) {
+        checkInitialized()
+        appContext.dataStore.edit { preferences ->
+            preferences[longPreferencesKey(key)] = value
+        }
+    }
+
+    // Get Long from DataStore as Flow
+    fun getLongFromDataStoreFlow(key: String, defaultValue: Long = 0L): Flow<Long> {
+        checkInitialized()
+        return appContext.dataStore.data.map { preferences ->
+            preferences[longPreferencesKey(key)] ?: defaultValue
+        }
+    }
+
+    // Get Long from DataStore synchronously
+    suspend fun getLongFromDataStore(key: String, defaultValue: Long = 0L): Long {
+        return getLongFromDataStoreFlow(key, defaultValue).first()
     }
 
     // Remove a key from DataStore (suspend function)
     suspend fun removeFromDataStore(key: String) {
+        checkInitialized()
         appContext.dataStore.edit { preferences ->
             preferences.remove(stringPreferencesKey(key))
             preferences.remove(intPreferencesKey(key))
@@ -170,9 +240,65 @@ class StorageManager private constructor(context: Context) {
 
     // Clear all DataStore preferences (suspend function)
     suspend fun clearDataStore() {
+        checkInitialized()
         appContext.dataStore.edit { preferences ->
             preferences.clear()
         }
+    }
+
+
+    //// SPECIFIC METHODS
+
+    // Virtual NFC Card
+
+    fun setVirtualCardUid(uid: String) {
+        saveSecureString(StorageKeys.NFC_CARD_UID, uid)
+    }
+
+    fun getVirtualCardUid(): String? {
+        return getSecureString(StorageKeys.NFC_CARD_UID, null)
+    }
+
+    // Device ID
+
+    fun setDeviceId(deviceId: String) {
+        saveSecureString(StorageKeys.DEVICE_ID, deviceId)
+    }
+
+    fun getDeviceId(): String? {
+        return getSecureString(StorageKeys.DEVICE_ID, null)
+    }
+
+    // Authentication and User Session
+
+    fun isLoggedIn(): Boolean {
+        return getSecureBoolean(StorageKeys.IS_LOGGED_IN, false)
+    }
+
+    fun login(token: String, userId: Int, name: String, surname: String, email: String) {
+        saveSecureBoolean(StorageKeys.IS_LOGGED_IN, true)
+        saveSecureString(StorageKeys.AUTH_TOKEN, token)
+        saveSecureInt(StorageKeys.USER_ID, userId)
+        saveSecureString(StorageKeys.USER_NAME, name)
+        saveSecureString(StorageKeys.USER_SURNAME, surname)
+        saveSecureString(StorageKeys.USER_EMAIL, email)
+    }
+
+    fun getAuthToken(): String? {
+        return getSecureString(StorageKeys.AUTH_TOKEN, null)
+    }
+
+    fun getUserData(): Map<String, Any?> {
+        return mapOf(
+            "userId" to getSecureInt(StorageKeys.USER_ID, -1),
+            "name" to getSecureString(StorageKeys.USER_NAME, null),
+            "surname" to getSecureString(StorageKeys.USER_SURNAME, null),
+            "email" to getSecureString(StorageKeys.USER_EMAIL, null)
+        )
+    }
+
+    fun logout() {
+        clearAllSecure()
     }
 
 
@@ -197,7 +323,6 @@ object StorageKeys {
     // Login and User
     const val IS_LOGGED_IN = "is_logged_in"
     const val AUTH_TOKEN = "auth_token"
-    const val REFRESH_TOKEN = "refresh_token"
     const val USER_ID = "user_id"
     const val USER_NAME = "user_name"
     const val USER_SURNAME = "user_surname"
@@ -207,4 +332,3 @@ object StorageKeys {
     const val NFC_CARD_UID = "nfc_card_uid"
     const val DEVICE_ID = "device_id"
 }
-
