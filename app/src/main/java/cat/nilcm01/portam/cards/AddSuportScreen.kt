@@ -46,7 +46,7 @@ import cat.nilcm01.portam.ui.values.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-private object Steps {
+private object StepsAddSuport {
     const val Start = 1
     const val Processing = 2
     const val Success = 3
@@ -92,12 +92,14 @@ fun AddSuportScreen(
     onBack: () -> Unit = {},
     nfcTagUid: String? = null
 ) {
+    var step by remember { mutableStateOf(StepsAddSuport.Start) }
+
     // Intercept system back / gesture and call the provided onBack lambda
     BackHandler(enabled = true) {
-        onBack()
+        if (step != StepsAddSuport.Processing) {
+            onBack()
+        }
     }
-
-    var step by remember { mutableStateOf(Steps.Start) }
 
     // State to hold the UID
     var uid by remember { mutableStateOf("") }
@@ -208,11 +210,11 @@ fun AddSuportScreen(
                     .clickable(
                         onClick = {
                             // If UID is empty, only contains spaces, do nothing
-                            if (uid.trim().isEmpty() || step != Steps.Start) {
+                            if (uid.trim().isEmpty() || step != StepsAddSuport.Start) {
                                 return@clickable
                             }
                             // Move to processing step
-                            step = Steps.Processing
+                            step = StepsAddSuport.Processing
                         }
                     )
                     .padding(PaddingMedium),
@@ -234,7 +236,7 @@ fun AddSuportScreen(
             }
 
             // Only show if Step == Steps.Processing
-            if (step == Steps.Processing) {
+            if (step == StepsAddSuport.Processing) {
                 Spacer(modifier = Modifier.height(24.dp))
                 Text(
                     text = "Afegint el suport, si us plau espera...",
@@ -255,16 +257,16 @@ fun AddSuportScreen(
                         suportApiResultGlobal = addSuportApiCall(uid)
                     }
                     step = if (suportApiResultGlobal?.success == true) {
-                        Steps.Success
+                        StepsAddSuport.Success
                     } else {
-                        Steps.Error
+                        StepsAddSuport.Error
                     }
                 }
 
             }
 
             // Only show if Step == Steps.Success
-            else if (step == Steps.Success) {
+            else if (step == StepsAddSuport.Success) {
                 Spacer(modifier = Modifier.height(24.dp))
                 Text(
                     text = "Suport afegit correctament!",
@@ -275,7 +277,7 @@ fun AddSuportScreen(
             }
 
             // Only show if Step == Steps.Error
-            else if (step == Steps.Error) {
+            else if (step == StepsAddSuport.Error) {
                 Spacer(modifier = Modifier.height(24.dp))
                 Text(
                     text = "S'ha produït un error en afegir el suport." +
