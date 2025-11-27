@@ -26,13 +26,13 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import cat.nilcm01.portam.cards.CardScreen
 import cat.nilcm01.portam.cards.SuportsScreen
 import cat.nilcm01.portam.home.HomeScreen
 import cat.nilcm01.portam.profile.ProfileScreen
+import cat.nilcm01.portam.titles.AddTitleScreen
 import cat.nilcm01.portam.titles.TitlesScreen
 import cat.nilcm01.portam.ui.theme.PortamTheme
 import cat.nilcm01.portam.utils.NfcHandler
@@ -104,7 +104,7 @@ enum class BottomDestination(
 ) {
     HOME("home", "Inici", Icons.Filled.Home),
     CARD_GRAPH("card_graph", "Targeta", Icons.Filled.Email),
-    TITLES("titles", "Títols", Icons.Filled.Menu),
+    TITLES_GRAPH("titles_graph", "Títols", Icons.Filled.Menu),
     PROFILE("profile", "Perfil", Icons.Filled.AccountCircle),
 }
 
@@ -122,7 +122,9 @@ private object Routes {
     const val CardAddSuport = "card/add_suport"
 
     // TITLES
-    const val Titles = "titles"
+    const val TitlesGraph = "titles_graph"
+    const val TitlesMain = "titles/main"
+    const val TitlesAdd = "titles/add"
 
     // PROFILE - ACCOUNT ADMIN
     const val Profile = "profile"
@@ -150,7 +152,7 @@ fun MainScreen(nfcTagUid: String? = null) {
                     val items = listOf(
                         BottomDestination.HOME,
                         BottomDestination.CARD_GRAPH,
-                        BottomDestination.TITLES,
+                        BottomDestination.TITLES_GRAPH,
                         BottomDestination.PROFILE
                     )
 
@@ -158,7 +160,10 @@ fun MainScreen(nfcTagUid: String? = null) {
                         val selected = currentDest?.hierarchy?.any { it.route == destination.route } == true ||
                                 // Per al cas del gràfic anidat de Card, marca com seleccionat si estem dins de qualsevol "card/*"
                                 (destination == BottomDestination.CARD_GRAPH &&
-                                        currentDest?.hierarchy?.any { it.route?.startsWith("card") == true } == true)
+                                        currentDest?.hierarchy?.any { it.route?.startsWith("card") == true } == true) ||
+                                // Per al cas del gràfic anidat de Titles, marca com seleccionat si estem dins de qualsevol "titles/*"
+                                (destination == BottomDestination.TITLES_GRAPH &&
+                                        currentDest?.hierarchy?.any { it.route?.startsWith("titles") == true } == true)
 
                         NavigationBarItem(
                             selected = selected,
@@ -264,9 +269,29 @@ fun MainScreen(nfcTagUid: String? = null) {
                 }
             }
 
-            // TITLES (top-level simple)
-            composable(Routes.Titles) {
-                TitlesScreen(Modifier.fillMaxSize())
+            // TITLES GRAPH (top-level → amb rutes internes)
+            navigation(
+                startDestination = Routes.TitlesMain,
+                route = Routes.TitlesGraph
+            ) {
+                composable(
+                    Routes.TitlesMain
+                ) {
+                    TitlesScreen(
+                        modifier = Modifier.fillMaxSize(),
+                        onNavigateToAddTitle = {
+                            navController.navigate(Routes.TitlesAdd)
+                        }
+                    )
+                }
+                composable(
+                    Routes.TitlesAdd
+                ) {
+                    AddTitleScreen(
+                        modifier = Modifier.fillMaxSize(),
+                        onBack = { navController.popBackStack() }
+                    )
+                }
             }
 
             // PROFILE (top-level simple)

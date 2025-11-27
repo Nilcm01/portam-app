@@ -194,7 +194,7 @@ fun SuportsScreen(
                 .weight(1f) // constrain to remaining space so verticalScroll works
                 .verticalScroll(rememberScrollState())
                 .padding(PaddingLarge),
-            verticalArrangement = Arrangement.Top,
+            verticalArrangement = if (step == Steps.Loading) Arrangement.Center else Arrangement.Top,
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             // Loading state
