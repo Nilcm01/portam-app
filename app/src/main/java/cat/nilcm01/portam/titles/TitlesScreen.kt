@@ -1,5 +1,6 @@
 package cat.nilcm01.portam.titles
 
+import android.widget.Toast
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -11,7 +12,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -23,23 +23,29 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import cat.nilcm01.portam.ui.theme.ColorGreen
 import cat.nilcm01.portam.ui.values.BarTopHeight
 import cat.nilcm01.portam.ui.values.BarTopInnerPadding
 import cat.nilcm01.portam.ui.values.CornerRadiusMedium
+import cat.nilcm01.portam.ui.values.IconSizeMedium
 import cat.nilcm01.portam.ui.values.IconSizeMediumSmall
 import cat.nilcm01.portam.ui.values.PaddingLarge
 import cat.nilcm01.portam.ui.values.PaddingMedium
+import cat.nilcm01.portam.ui.values.PaddingSmall
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -56,12 +62,13 @@ data class UserTitle(
     val name: String,
     val description: String,
     val uses: Int,
-    val uses_left: Int,
+    val uses_left: Int?, // null means unlimited uses
     val first_use: String,
     val expiration: String,
     val re_entry: Int,
     val link: Int,
     val num_zones: Int,
+    val zone_origin: Int?,
     val active: Boolean
 )
 
@@ -70,8 +77,6 @@ data class MainApiResult(
     val user_id: Int,
     val user_titles: List<UserTitle>
 )
-
-var userTitles: List<UserTitle>? = null
 
 fun getUserTitlesApi(): MainApiResult {
     // Simulate API call delay
@@ -94,6 +99,7 @@ fun getUserTitlesApi(): MainApiResult {
                 re_entry = 15,
                 link = 120,
                 num_zones = 3,
+                zone_origin = 1,
                 active = false
             ),
             UserTitle(
@@ -109,6 +115,7 @@ fun getUserTitlesApi(): MainApiResult {
                 re_entry = 0,
                 link = 90,
                 num_zones = 2,
+                zone_origin = 1,
                 active = true
             ),
             UserTitle(
@@ -124,6 +131,7 @@ fun getUserTitlesApi(): MainApiResult {
                 re_entry = 0,
                 link = 90,
                 num_zones = 1,
+                zone_origin = 1,
                 active = false
             ),
             UserTitle(
@@ -139,36 +147,55 @@ fun getUserTitlesApi(): MainApiResult {
                 re_entry = 0,
                 link = 90,
                 num_zones = 1,
+                zone_origin = 1,
                 active = false
             )
         )
     )
 }
 
-fun activateTitleApi(id: Int): Boolean {
+fun activateTitleApi(id: Int, currentTitles: List<UserTitle>): List<UserTitle> {
     // Simulate API call delay
     Thread.sleep(1000)
     // TODO: Implement API call to activate title
-    // For now, set all titles to inactive except the one with the given id
-    userTitles = userTitles?.map { title ->
+    // Set all titles to inactive except the one with the given id
+    return currentTitles.map { title ->
         if (title.id == id) {
             title.copy(active = true)
         } else {
             title.copy(active = false)
         }
     }
-    return true
 }
+
 
 @Composable
 fun TitlesScreen(
     modifier: Modifier = Modifier,
     onNavigateToAddTitle: () -> Unit = {}
 ) {
+    val context = LocalContext.current
     var step by remember { mutableStateOf(MainSteps.Loading) }
     var userTitlesList by remember { mutableStateOf<List<UserTitle>>(emptyList()) }
     var activatingTitle by remember { mutableStateOf<Int?>(null) }
 
+    // Separate titles into active and expired based on userTitlesList
+    val currentTime = remember { java.time.Instant.now().toString() }
+    val activeUserTitles = remember(userTitlesList) {
+        userTitlesList.filter {
+            // Active if: (uses_left > 0 OR uses_left is null for unlimited) AND not expired
+            (it.uses_left == null || it.uses_left > 0) && it.expiration >= currentTime
+        }.sortedWith(
+            compareByDescending<UserTitle> { it.active }
+                .thenBy { it.expiration }
+        )
+    }
+    val expiredUserTitles = remember(userTitlesList) {
+        userTitlesList.filter {
+            // Expired if: uses_left == 0 (exhausted) OR expiration date passed
+            (it.uses_left != null && it.uses_left == 0) || it.expiration < currentTime
+        }.sortedByDescending { it.expiration }
+    }
 
     // Load userTitles on first composition
     LaunchedEffect(Unit) {
@@ -176,7 +203,6 @@ fun TitlesScreen(
             val result = getUserTitlesApi()
             if (result.success) {
                 userTitlesList = result.user_titles
-                userTitles = result.user_titles
                 step = MainSteps.Success
             } else {
                 step = MainSteps.Error
@@ -243,9 +269,10 @@ fun TitlesScreen(
                         style = MaterialTheme.typography.bodyLarge,
                         textAlign = TextAlign.Center,
                         color = MaterialTheme.colorScheme.primary,
-                        fontStyle = FontStyle.Italic )
+                        fontStyle = FontStyle.Italic
+                    )
                     Spacer(modifier = Modifier.height(16.dp))
-                    CircularProgressIndicator( color = MaterialTheme.colorScheme.primary )
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                 }
             }
 
@@ -263,14 +290,6 @@ fun TitlesScreen(
 
             // Success state
             else if (step == MainSteps.Success) {
-
-                // Sort userTitles: active first, then from closest to furthest expiration date,
-                // then already expired ones, by newer to older expiration date (use current date)
-                val sortedUserTitles = userTitlesList.sortedWith(
-                    compareByDescending<UserTitle> { it.active }
-                        .thenBy { if (it.expiration < java.time.Instant.now().toString()) 1 else 0 }
-                        .thenBy { it.expiration }
-                )
 
 
                 // Add new title
@@ -303,9 +322,270 @@ fun TitlesScreen(
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
-                //Spacer(modifier = Modifier.height(PaddingMedium))
+
+                // Active user titles header
+                Spacer(modifier = Modifier.height(PaddingMedium))
+                Text(
+                    modifier = Modifier
+                        .fillMaxWidth() // Comment this line to center the text
+                        .padding(
+                            bottom = PaddingMedium,
+                            top = PaddingMedium,
+                            start = 0.dp,
+                            end = 0.dp
+                        ),
+                    text = "Els teus títols:",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    fontStyle = FontStyle.Italic,
+                    color = MaterialTheme.colorScheme.onBackground,
+                )
 
                 // Dynamically list user titles
+                activeUserTitles.forEach { title ->
+                    val isActivating = activatingTitle == title.id
+                    // Date format: DD-MM-YYYY
+                    val expDateOriginal = title.expiration.take(10)
+                    val expirationDate = "${expDateOriginal.substring(8, 10)}-${expDateOriginal.substring(5, 7)}-${expDateOriginal.substring(0, 4)}"
+
+                    Box {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(
+                                    if (title.active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary,
+                                    RoundedCornerShape(CornerRadiusMedium)
+                                )
+                                .alpha(if (isActivating) 0.2f else 1f)
+                                .padding(PaddingSmall),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.Start,
+                                verticalArrangement = Arrangement.Top,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(horizontal = PaddingMedium)
+                            ) {
+                                Text(
+                                    text = title.name,
+                                    style = MaterialTheme.typography.titleLarge,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSecondary,
+                                    textAlign = TextAlign.Left
+                                )
+                                Text(
+                                    text = title.description,
+                                    color = MaterialTheme.colorScheme.onSecondary,
+                                    fontStyle = FontStyle.Italic,
+                                    textAlign = TextAlign.Left
+                                )
+                                Text(
+                                    text = "Zones: ${title.num_zones} - Origen: ${title.zone_origin ?: "Pendent"}",
+                                    color = MaterialTheme.colorScheme.onSecondary,
+                                    textAlign = TextAlign.Left
+                                )
+                                Text(
+                                    text = "Caduca el: $expirationDate",
+                                    color = MaterialTheme.colorScheme.onSecondary,
+                                    textAlign = TextAlign.Left
+                                )
+                                Text(
+                                    text = "Viatges restants: ${title.uses_left ?: "Ilimitats"}",
+                                    color = MaterialTheme.colorScheme.onSecondary,
+                                    textAlign = TextAlign.Left
+                                )
+                            }
+
+                            // Show activate button
+                            IconButton(
+                                onClick = {
+                                    if (!isActivating && !title.active) {
+                                        activatingTitle = title.id
+                                    }
+                                },
+                                enabled = !isActivating
+                            ) {
+                                if (!title.active) {
+                                    Icon(
+                                        painter = painterResource(id = cat.nilcm01.portam.R.drawable.icon_transport_ticket),
+                                        contentDescription = "Activa el títol",
+                                        modifier = Modifier.size(IconSizeMedium),
+                                        tint = ColorGreen
+                                    )
+                                } else {
+                                    Icon(
+                                        painter = painterResource(id = cat.nilcm01.portam.R.drawable.icon_contactless),
+                                        contentDescription = "Títol actiu",
+                                        modifier = Modifier.size(IconSizeMedium),
+                                        tint = MaterialTheme.colorScheme.onPrimary
+                                    )
+                                }
+                            }
+                        }
+
+                        // Activation overlay
+                        if (isActivating) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .matchParentSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center
+                                ) {
+                                    CircularProgressIndicator(
+                                        color = MaterialTheme.colorScheme.onPrimary,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "Activant títol...",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onPrimary,
+                                        fontStyle = FontStyle.Italic
+                                    )
+                                }
+                            }
+
+                            // Handle activation
+                            LaunchedEffect(Unit) {
+                                withContext(Dispatchers.IO) {
+                                    val updatedTitles = activateTitleApi(title.id, userTitlesList)
+                                    userTitlesList = updatedTitles
+                                }
+                                activatingTitle = null
+                                Toast.makeText(context, "S'ha activat el títol", Toast.LENGTH_SHORT)
+                                    .show()
+                            }
+                        }
+                    }
+
+                    // Add spacing between title cards
+                    Spacer(modifier = Modifier.height(PaddingMedium))
+                }
+
+                // If empty, show message
+                if (activeUserTitles.isEmpty()) {
+                    Text(
+                        modifier = Modifier
+                            .padding(
+                                bottom = PaddingMedium,
+                                top = PaddingMedium,
+                                start = 0.dp,
+                                end = 0.dp
+                            ),
+                        text = "Cap títol disponible",
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontStyle = FontStyle.Italic,
+                        color = MaterialTheme.colorScheme.onBackground,
+                    )
+                }
+
+
+                // Expirated or used up user titles header
+                Spacer(modifier = Modifier.height(PaddingMedium))
+                Text(
+                    modifier = Modifier
+                        .fillMaxWidth() // Comment this line to center the text
+                        .padding(
+                            bottom = PaddingMedium,
+                            top = PaddingMedium,
+                            start = 0.dp,
+                            end = 0.dp
+                        ),
+                    text = "Títols exahurits o caducats:",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    fontStyle = FontStyle.Italic,
+                    color = MaterialTheme.colorScheme.onBackground,
+                )
+
+
+                // Dynamically list expired user titles
+                expiredUserTitles.forEach { title ->
+                    // Date format: DD-MM-YYYY
+                    val expDateOriginal = title.expiration.take(10)
+                    val expirationDate = "${expDateOriginal.substring(8, 10)}-${expDateOriginal.substring(5, 7)}-${expDateOriginal.substring(0, 4)}"
+
+                    Box {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(
+                                    if (title.active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary,
+                                    RoundedCornerShape(CornerRadiusMedium)
+                                )
+                                .alpha(1f)
+                                .padding(PaddingSmall),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.Start,
+                                verticalArrangement = Arrangement.Top,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(horizontal = PaddingMedium)
+                            ) {
+                                Text(
+                                    text = title.name,
+                                    style = MaterialTheme.typography.titleLarge,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSecondary,
+                                    textAlign = TextAlign.Left
+                                )
+                                Text(
+                                    text = title.description,
+                                    color = MaterialTheme.colorScheme.onSecondary,
+                                    fontStyle = FontStyle.Italic,
+                                    textAlign = TextAlign.Left
+                                )
+                                Text(
+                                    text = "Zones: ${title.num_zones} - Origen: ${title.zone_origin ?: "Pendent"}",
+                                    color = MaterialTheme.colorScheme.onSecondary,
+                                    textAlign = TextAlign.Left
+                                )
+                                Text(
+                                    text = "Caducat el: $expirationDate",
+                                    color = MaterialTheme.colorScheme.onSecondary,
+                                    textAlign = TextAlign.Left
+                                )
+                                Text(
+                                    text = "Viatges que li restaven: ${title.uses_left ?: "Ilimitats"}",
+                                    color = MaterialTheme.colorScheme.onSecondary,
+                                    textAlign = TextAlign.Left
+                                )
+                            }
+
+                            // Show activate button
+                            //Spacer(modifier = Modifier.width(IconSizeMediumSmall))
+                        }
+                    }
+
+                    // Add spacing between title cards
+                    Spacer(modifier = Modifier.height(PaddingMedium))
+                }
+
+                // If empty, show message
+                if (expiredUserTitles.isEmpty()) {
+                    Text(
+                        modifier = Modifier
+                            .padding(
+                                bottom = PaddingMedium,
+                                top = PaddingMedium,
+                                start = 0.dp,
+                                end = 0.dp
+                            ),
+                        text = "Cap títol exahurit o caducat",
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontStyle = FontStyle.Italic,
+                        color = MaterialTheme.colorScheme.onBackground,
+                    )
+                }
             }
         }
     }
