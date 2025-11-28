@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Email
-import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -27,6 +26,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import cat.nilcm01.portam.cards.CardScreen
 import cat.nilcm01.portam.cards.SuportsScreen
@@ -100,12 +100,12 @@ class MainActivity : ComponentActivity() {
 enum class BottomDestination(
     val route: String,
     val label: String,
-    val icon: androidx.compose.ui.graphics.vector.ImageVector
+    val icon: Int
 ) {
-    HOME("home", "Inici", Icons.Filled.Home),
-    CARD_GRAPH("card_graph", "Targeta", Icons.Filled.Email),
-    TITLES_GRAPH("titles_graph", "Títols", Icons.Filled.Menu),
-    PROFILE("profile", "Perfil", Icons.Filled.AccountCircle),
+    HOME("home", "Inici", R.drawable.icon_home_filled),
+    CARD_GRAPH("card_graph", "Targeta", R.drawable.icon_contactless_filled),
+    TITLES_GRAPH("titles_graph", "Títols", R.drawable.icon_transport_ticket_filled),
+    PROFILE("profile", "Perfil", R.drawable.icon_account_circle),
 }
 
 private object Routes {
@@ -178,7 +178,7 @@ fun MainScreen(nfcTagUid: String? = null) {
                             },
                             icon = {
                                 Icon(
-                                    imageVector = destination.icon,
+                                    painter = painterResource(destination.icon),
                                     contentDescription = destination.label
                                 )
                             },
