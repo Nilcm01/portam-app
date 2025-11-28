@@ -233,6 +233,38 @@ fun SuportsScreen(
                     }
                 })
 
+                // Add suport button
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            MaterialTheme.colorScheme.primary,
+                            RoundedCornerShape(CornerRadiusMedium)
+                        )
+                        .clickable(
+                            onClick = {
+                                onNavigateToAddSuport()
+                            }
+                        )
+                        .padding(PaddingMedium),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Icon(
+                        painter = painterResource(id = cat.nilcm01.portam.R.drawable.icon_add_circle),
+                        contentDescription = "Afegeix un nou suport",
+                        modifier = Modifier.size(IconSizeMediumSmall),
+                        tint = MaterialTheme.colorScheme.onPrimary
+                    )
+                    Text(
+                        "Afegeix un nou suport",
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+                Spacer(modifier = Modifier.height(PaddingMedium))
+
                 // Dynamically generate suport items
                 sortedSuports.forEachIndexed { index, suport ->
                     val isDeleting = deletingUid == suport.uid
@@ -365,38 +397,6 @@ fun SuportsScreen(
                     if (index < sortedSuports.size - 1) {
                         Spacer(modifier = Modifier.height(PaddingMedium))
                     }
-                }
-
-                // Add suport button
-                Spacer(modifier = Modifier.height(PaddingMedium))
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(
-                            MaterialTheme.colorScheme.primary,
-                            RoundedCornerShape(CornerRadiusMedium)
-                        )
-                        .clickable(
-                            onClick = {
-                                onNavigateToAddSuport()
-                            }
-                        )
-                        .padding(PaddingMedium),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Icon(
-                        painter = painterResource(id = cat.nilcm01.portam.R.drawable.icon_add_circle),
-                        contentDescription = "Afegeix un nou suport",
-                        modifier = Modifier.size(IconSizeMediumSmall),
-                        tint = MaterialTheme.colorScheme.onPrimary
-                    )
-                    Text(
-                        "Afegeix un nou suport",
-                        color = MaterialTheme.colorScheme.onPrimary,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth()
-                    )
                 }
             }
         }
