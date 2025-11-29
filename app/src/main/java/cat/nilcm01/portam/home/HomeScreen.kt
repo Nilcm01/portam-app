@@ -40,7 +40,11 @@ import cat.nilcm01.portam.ui.values.PaddingMedium
 @Composable
 fun HomeScreen(
     modifier: Modifier = Modifier,
-    onNavigateToCards: () -> Unit = {}
+    onNavigateToCards: () -> Unit = {},
+    onNavigateToTitles: () -> Unit = {},
+    onNavigateToHistory: () -> Unit = {},
+    onNavigateToSuports: () -> Unit = {},
+    onNavigateToUser: () -> Unit = {}
 ) {
     LazyVerticalGrid(
         modifier = modifier.fillMaxSize(),
@@ -113,6 +117,10 @@ fun HomeScreen(
                         MaterialTheme.colorScheme.primary,
                         RoundedCornerShape(CornerRadiusMedium)
                     )
+                    .clickable(
+                        onClick = { onNavigateToTitles() },
+                        role = Role.Button
+                    )
                     .padding(8.dp),
                 contentAlignment = Alignment.Center,
 
@@ -145,6 +153,10 @@ fun HomeScreen(
                         MaterialTheme.colorScheme.primary,
                         RoundedCornerShape(CornerRadiusMedium)
                     )
+                    .clickable(
+                        onClick = { onNavigateToHistory() },
+                        role = Role.Button
+                    )
                     .padding(8.dp),
                 contentAlignment = Alignment.Center,
 
@@ -174,6 +186,10 @@ fun HomeScreen(
                     .background(
                         MaterialTheme.colorScheme.primary,
                         RoundedCornerShape(CornerRadiusMedium)
+                    )
+                    .clickable(
+                        onClick = { onNavigateToSuports() },
+                        role = Role.Button
                     )
                     .padding(8.dp),
                 contentAlignment = Alignment.Center,
@@ -206,6 +222,10 @@ fun HomeScreen(
                     .background(
                         MaterialTheme.colorScheme.primary,
                         RoundedCornerShape(CornerRadiusMedium)
+                    )
+                    .clickable(
+                        onClick = { onNavigateToUser() },
+                        role = Role.Button
                     )
                     .padding(8.dp),
                 contentAlignment = Alignment.Center

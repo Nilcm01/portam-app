@@ -221,13 +221,40 @@ fun MainScreen(nfcTagUid: String? = null) {
                 HomeScreen(
                     modifier = Modifier.fillMaxSize(),
                     onNavigateToCards = {
-                        // Si vols obrir directament la pestanya Card
                         navController.navigate(Routes.CardMain) {
-                            // Ens assegurem d’estar dins el gràfic de card
-                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                            // Make sure to pop up to the start destination to avoid building a large back stack
+                            popUpTo(navController.graph.findStartDestination().id) {
+                                saveState = true
+                            }
                             launchSingleTop = true
                             restoreState = true
                         }
+                    },
+                    onNavigateToTitles = {
+                        navController.navigate(Routes.TitlesMain) {
+                            // Make sure to pop up to the start destination to avoid building a large back stack
+                            popUpTo(navController.graph.findStartDestination().id) {
+                                saveState = true
+                            }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    },
+                    onNavigateToHistory = {
+                        // TODO: Implement navigation to History screen
+                    },
+                    onNavigateToSuports = {
+                        navController.navigate(Routes.CardSuports) {
+                            // Make sure to pop up to the start destination to avoid building a large back stack
+                            popUpTo(navController.graph.findStartDestination().id) {
+                                saveState = true
+                            }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    },
+                    onNavigateToUser = {
+                        // TODO: Implement navigation to User/Profile screen
                     }
                 )
             }
