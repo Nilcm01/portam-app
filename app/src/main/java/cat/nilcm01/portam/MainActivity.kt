@@ -11,10 +11,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountCircle
-import androidx.compose.material.icons.filled.Email
-import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -105,7 +101,7 @@ enum class BottomDestination(
     HOME("home", "Inici", R.drawable.icon_home_filled),
     CARD_GRAPH("card_graph", "Targeta", R.drawable.icon_contactless_filled),
     TITLES_GRAPH("titles_graph", "Títols", R.drawable.icon_transport_ticket_filled),
-    PROFILE("profile", "Perfil", R.drawable.icon_account_circle),
+    PROFILE_GRAPH("profile_graph", "Perfil", R.drawable.icon_account_circle),
 }
 
 private object Routes {
@@ -127,7 +123,14 @@ private object Routes {
     const val TitlesAdd = "titles/add"
 
     // PROFILE - ACCOUNT ADMIN
-    const val Profile = "profile"
+    const val ProfileGraph = "profile_graph"
+    const val ProfileMain = "profile/main"
+    const val ProfileSettings = "profile/settings"
+    const val ProfileReceipts = "profile/receipts"
+    const val ProfileAssistance = "profile/assistance"
+
+    // HISTORY
+    const val History = "history"
 }
 
 @Composable
@@ -153,7 +156,7 @@ fun MainScreen(nfcTagUid: String? = null) {
                         BottomDestination.HOME,
                         BottomDestination.CARD_GRAPH,
                         BottomDestination.TITLES_GRAPH,
-                        BottomDestination.PROFILE
+                        BottomDestination.PROFILE_GRAPH
                     )
 
                     items.forEach { destination ->
@@ -163,7 +166,10 @@ fun MainScreen(nfcTagUid: String? = null) {
                                         currentDest?.hierarchy?.any { it.route?.startsWith("card") == true } == true) ||
                                 // Per al cas del gràfic anidat de Titles, marca com seleccionat si estem dins de qualsevol "titles/*"
                                 (destination == BottomDestination.TITLES_GRAPH &&
-                                        currentDest?.hierarchy?.any { it.route?.startsWith("titles") == true } == true)
+                                        currentDest?.hierarchy?.any { it.route?.startsWith("titles") == true } == true) ||
+                                // Per al cas del gràfic anidat de Profile, marca com seleccionat si estem dins de qualsevol "profile/*"
+                                (destination == BottomDestination.PROFILE_GRAPH &&
+                                        currentDest?.hierarchy?.any { it.route?.startsWith("profile") == true } == true)
 
                         NavigationBarItem(
                             selected = selected,
@@ -321,9 +327,71 @@ fun MainScreen(nfcTagUid: String? = null) {
                 }
             }
 
-            // PROFILE (top-level simple)
-            composable(Routes.Profile) {
-                ProfileScreen(Modifier.fillMaxSize())
+            // HISTORY (top-level)
+            composable(Routes.History) {
+                // TODO: Create HistoryScreen composable
+                // HistoryScreen(
+                //     modifier = Modifier.fillMaxSize()
+                // )
+            }
+
+            // PROFILE GRAPH (top-level → amb rutes internes)
+            navigation(
+                startDestination = Routes.ProfileMain,
+                route = Routes.ProfileGraph
+            ) {
+                composable(
+                    Routes.ProfileMain
+                ) {
+                    ProfileScreen(
+                        modifier = Modifier.fillMaxSize(),
+                        onNavigateToSettings = {
+                            navController.navigate(Routes.ProfileSettings)
+                        },
+                        onNavigateToReceipts = {
+                            navController.navigate(Routes.ProfileReceipts)
+                        },
+                        onNavigateToHistory = {
+                            navController.navigate(Routes.History)
+                        },
+                        onNavigateToAssistance = {
+                            navController.navigate(Routes.ProfileAssistance)
+                        },
+                        onLogout = {
+                            StorageManager.logout()
+                            navController.navigate(Routes.Login) {
+                                popUpTo(Routes.Home) { inclusive = true }
+                            }
+                        }
+                    )
+                }
+                composable(
+                    Routes.ProfileSettings
+                ) {
+                    // TODO: Create ProfileSettingsScreen composable
+                    // ProfileSettingsScreen(
+                    //     modifier = Modifier.fillMaxSize(),
+                    //     onBack = { navController.popBackStack() }
+                    // )
+                }
+                composable(
+                    Routes.ProfileReceipts
+                ) {
+                    // TODO: Create ProfileReceiptsScreen composable
+                    // ProfileReceiptsScreen(
+                    //     modifier = Modifier.fillMaxSize(),
+                    //     onBack = { navController.popBackStack() }
+                    // )
+                }
+                composable(
+                    Routes.ProfileAssistance
+                ) {
+                    // TODO: Create ProfileAssistanceScreen composable
+                    // ProfileAssistanceScreen(
+                    //     modifier = Modifier.fillMaxSize(),
+                    //     onBack = { navController.popBackStack() }
+                    // )
+                }
             }
         }
     }

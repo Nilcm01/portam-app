@@ -298,7 +298,13 @@ object StorageManager {
     }
 
     fun logout() {
-        clearAllSecure()
+        // Clear secure preferences related to user session
+        saveSecureBoolean(StorageKeys.IS_LOGGED_IN, false)
+        removeSecure(StorageKeys.AUTH_TOKEN)
+        removeSecure(StorageKeys.USER_ID)
+        removeSecure(StorageKeys.USER_NAME)
+        removeSecure(StorageKeys.USER_SURNAME)
+        removeSecure(StorageKeys.USER_EMAIL)
     }
 
 
