@@ -169,7 +169,7 @@ fun ProfileScreen(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Icon(
-                    painter = painterResource(id = cat.nilcm01.portam.R.drawable.icon_account_circle),
+                    painter = painterResource(id = cat.nilcm01.portam.R.drawable.icon_receipt),
                     contentDescription = "Factures",
                     modifier = Modifier.size(IconSizeMediumSmall),
                     tint = MaterialTheme.colorScheme.onPrimary
@@ -233,7 +233,7 @@ fun ProfileScreen(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Icon(
-                    painter = painterResource(id = cat.nilcm01.portam.R.drawable.icon_user_boxed_mail),
+                    painter = painterResource(id = cat.nilcm01.portam.R.drawable.icon_help_square),
                     contentDescription = "Assistència i contacte",
                     modifier = Modifier.size(IconSizeMediumSmall),
                     tint = MaterialTheme.colorScheme.onPrimary
