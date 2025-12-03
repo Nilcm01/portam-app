@@ -40,6 +40,7 @@ import androidx.navigation.navigation
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import cat.nilcm01.portam.cards.AddSuportScreen
+import cat.nilcm01.portam.history.HistoryScreen
 import cat.nilcm01.portam.login.LoginScreen
 import cat.nilcm01.portam.utils.StorageManager
 
@@ -247,7 +248,14 @@ fun MainScreen(nfcTagUid: String? = null) {
                         }
                     },
                     onNavigateToHistory = {
-                        // TODO: Implement navigation to History screen
+                        navController.navigate(Routes.History) {
+                            // Make sure to pop up to the start destination to avoid building a large back stack
+                            popUpTo(navController.graph.findStartDestination().id) {
+                                saveState = true
+                            }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
                     },
                     onNavigateToSuports = {
                         navController.navigate(Routes.CardSuports) {
@@ -277,6 +285,9 @@ fun MainScreen(nfcTagUid: String? = null) {
                         modifier = Modifier.fillMaxSize(),
                         onNavigateToSuports = {
                             navController.navigate(Routes.CardSuports)
+                        },
+                        onNavigateToHistory = {
+                            navController.navigate(Routes.History)
                         }
                     )
                 }
@@ -328,11 +339,13 @@ fun MainScreen(nfcTagUid: String? = null) {
             }
 
             // HISTORY (top-level)
-            composable(Routes.History) {
-                // TODO: Create HistoryScreen composable
-                // HistoryScreen(
-                //     modifier = Modifier.fillMaxSize()
-                // )
+            composable(
+                Routes.History
+            ) {
+                HistoryScreen(
+                    modifier = Modifier.fillMaxSize(),
+                    onBack = { navController.popBackStack() }
+                )
             }
 
             // PROFILE GRAPH (top-level → amb rutes internes)

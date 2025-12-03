@@ -38,7 +38,8 @@ import cat.nilcm01.portam.ui.values.PaddingXXLarge
 @Composable
 fun CardScreen(
     modifier: Modifier = Modifier,
-    onNavigateToSuports: () -> Unit = {}
+    onNavigateToSuports: () -> Unit = {},
+    onNavigateToHistory: () -> Unit = {}
 ) {
     Column(
         modifier = modifier
@@ -138,6 +139,12 @@ fun CardScreen(
                     .background(
                         MaterialTheme.colorScheme.primary,
                         RoundedCornerShape(CornerRadiusMedium)
+                    )
+                    .clickable(
+                        onClick = {
+                            onNavigateToHistory()
+                        },
+                        role = Role.Button
                     )
                     .padding(8.dp),
                 contentAlignment = Alignment.Center
