@@ -42,6 +42,7 @@ import androidx.navigation.NavGraph.Companion.findStartDestination
 import cat.nilcm01.portam.cards.AddSuportScreen
 import cat.nilcm01.portam.history.HistoryScreen
 import cat.nilcm01.portam.login.LoginScreen
+import cat.nilcm01.portam.profile.AssistanceScreen
 import cat.nilcm01.portam.profile.ReceiptsScreen
 import cat.nilcm01.portam.utils.StorageManager
 
@@ -399,11 +400,10 @@ fun MainScreen(nfcTagUid: String? = null) {
                 composable(
                     Routes.ProfileAssistance
                 ) {
-                    // TODO: Create ProfileAssistanceScreen composable
-                    // ProfileAssistanceScreen(
-                    //     modifier = Modifier.fillMaxSize(),
-                    //     onBack = { navController.popBackStack() }
-                    // )
+                    AssistanceScreen(
+                        modifier = Modifier.fillMaxSize(),
+                        onBack = { navController.popBackStack() }
+                    )
                 }
             }
         }
