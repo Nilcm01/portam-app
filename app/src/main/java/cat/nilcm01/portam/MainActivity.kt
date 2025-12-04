@@ -44,6 +44,7 @@ import cat.nilcm01.portam.history.HistoryScreen
 import cat.nilcm01.portam.login.LoginScreen
 import cat.nilcm01.portam.profile.AssistanceScreen
 import cat.nilcm01.portam.profile.ReceiptsScreen
+import cat.nilcm01.portam.profile.SettingsScreen
 import cat.nilcm01.portam.utils.StorageManager
 
 
@@ -383,11 +384,10 @@ fun MainScreen(nfcTagUid: String? = null) {
                 composable(
                     Routes.ProfileSettings
                 ) {
-                    // TODO: Create ProfileSettingsScreen composable
-                    // ProfileSettingsScreen(
-                    //     modifier = Modifier.fillMaxSize(),
-                    //     onBack = { navController.popBackStack() }
-                    // )
+                    SettingsScreen(
+                        modifier = Modifier.fillMaxSize(),
+                        onBack = { navController.popBackStack() }
+                    )
                 }
                 composable(
                     Routes.ProfileReceipts
