@@ -249,6 +249,11 @@ object StorageManager {
 
     //// SPECIFIC METHODS
 
+    // Get if it's the first launch
+    fun isFirstLaunch(): Boolean {
+        return getSecureBoolean(StorageKeys.FIRST_LAUNCH, true)
+    }
+
     // Virtual NFC Card
 
     fun setVirtualCardUid(uid: String) {
@@ -275,10 +280,10 @@ object StorageManager {
         return getSecureBoolean(StorageKeys.IS_LOGGED_IN, false)
     }
 
-    fun login(token: String, userId: Int, name: String, surname: String, email: String) {
+    fun login(token: String, userId: String, name: String, surname: String, email: String) {
         saveSecureBoolean(StorageKeys.IS_LOGGED_IN, true)
         saveSecureString(StorageKeys.AUTH_TOKEN, token)
-        saveSecureInt(StorageKeys.USER_ID, userId)
+        saveSecureString(StorageKeys.USER_ID, userId)
         saveSecureString(StorageKeys.USER_NAME, name)
         saveSecureString(StorageKeys.USER_SURNAME, surname)
         saveSecureString(StorageKeys.USER_EMAIL, email)
@@ -290,7 +295,7 @@ object StorageManager {
 
     fun getUserData(): Map<String, Any?> {
         return mapOf(
-            "userId" to getSecureInt(StorageKeys.USER_ID, -1),
+            "userId" to getSecureString(StorageKeys.USER_ID, null),
             "name" to getSecureString(StorageKeys.USER_NAME, null),
             "surname" to getSecureString(StorageKeys.USER_SURNAME, null),
             "email" to getSecureString(StorageKeys.USER_EMAIL, null)
@@ -305,6 +310,25 @@ object StorageManager {
         removeSecure(StorageKeys.USER_NAME)
         removeSecure(StorageKeys.USER_SURNAME)
         removeSecure(StorageKeys.USER_EMAIL)
+    }
+
+    fun firstLaunch(context: Context) {
+        // DEVICE_ID
+        val deviceId = android.provider.Settings.Secure.getString(
+            context.contentResolver,
+            android.provider.Settings.Secure.ANDROID_ID
+        ) ?: java.util.UUID.randomUUID().toString()
+        setDeviceId(deviceId)
+
+        // NFC_CARD_UID: 16 random hex characters
+        val nfcCardUid = List(16) {
+            val hexChars = "0123456789abcdef"
+            hexChars.random()
+        }.joinToString("")
+        setVirtualCardUid(nfcCardUid)
+
+        // Mark first launch completed
+        saveSecureBoolean(StorageKeys.FIRST_LAUNCH, false)
     }
 
 

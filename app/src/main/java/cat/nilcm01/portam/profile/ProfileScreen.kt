@@ -54,9 +54,9 @@ fun ProfileScreen(
     val context = LocalContext.current
 
     // User name
-    val userName by remember { mutableStateOf("Nom d'usuari") }
-    val userSurnames by remember { mutableStateOf("Cognoms de l'usuari") }
-    val userId by remember { mutableStateOf(26542838445) }
+    val userName by remember { mutableStateOf(StorageManager.getUserData().getValue("name")) }
+    val userSurnames by remember { mutableStateOf(StorageManager.getUserData().getValue("surname")) }
+    val userId by remember { mutableStateOf(StorageManager.getUserData().getValue("userId")) }
 
 
     // VIEW

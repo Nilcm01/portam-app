@@ -1,6 +1,7 @@
 package cat.nilcm01.portam.login
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -46,17 +47,26 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import cat.nilcm01.portam.ui.theme.success
 import cat.nilcm01.portam.ui.theme.transparent
 import cat.nilcm01.portam.ui.values.CornerRadiusMedium
 import cat.nilcm01.portam.ui.values.CornerRadiusSmall
 import cat.nilcm01.portam.ui.values.PaddingLarge
 import cat.nilcm01.portam.ui.values.PaddingMedium
+import cat.nilcm01.portam.utils.StorageManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import io.ktor.client.*
+import io.ktor.client.engine.android.*
+import io.ktor.client.plugins.contentnegotiation.*
+import io.ktor.client.request.*
+import io.ktor.client.statement.*
+import io.ktor.http.*
+import io.ktor.serialization.kotlinx.json.*
+import kotlinx.serialization.json.*
+
 
 private object Steps {
     const val Loading = 0
@@ -70,16 +80,17 @@ class ApiResult(
     val code: Int,
     val success: Boolean,
     val message: Map<String,String>,
-    val user: Int?,
+    val user: String?,
     val token: String?,
-    val expires: String?
+    val userData: UserLocal?
 )
 
+var checkSessionApiResult: ApiResult? = null
 var loginApiResult: ApiResult? = null
 var registerApiResult: ApiResult? = null
 
 data class UserLocal(
-    var id: Int,
+    var id: String,
     var token: String,
     var name: String,
     var surname: String,
@@ -102,42 +113,209 @@ data class UserLogin(
     var password: String
 )
 
-// Call to the API to login
-fun loginApiCall(user: UserLogin): ApiResult {
-    // Simulate API call delay
-    Thread.sleep(3000)
-    // TODO: Implement API call to login
-    return ApiResult(
-        200,
-        true,
-        mapOf(
-            "ca" to "Inici de sessió correcte",
-            "es" to "Inicio de sesión correcto",
-            "en" to "Login successful"
-        ),
-        1234567890,
-        "abcdef1234567890",
-        "2025-12-31H23:59:59"
-    )
+// Call to the API to check session
+suspend fun checkSessionApiCall(): ApiResult {
+    return withContext(Dispatchers.IO) {
+        try {
+            val client = HttpClient(Android) {
+                install(ContentNegotiation) {
+                    json(Json {
+                        ignoreUnknownKeys = true
+                        isLenient = true
+                    })
+                }
+            }
+
+            // Make POST request
+            val user = StorageManager.getUserData()
+            val response: HttpResponse =
+                client.post("https://portam-server.vercel.app/api/auth/check-session") {
+                    contentType(ContentType.Application.FormUrlEncoded)
+                    setBody(
+                        "" +
+                                "userId=${user.getValue("userId")}" +
+                                "&deviceId=${StorageManager.getDeviceId()}" +
+                                "&token=${StorageManager.getAuthToken()}"
+                    )
+                }
+
+            val responseBody = response.bodyAsText()
+            val jsonResponse = Json.parseToJsonElement(responseBody).jsonObject
+
+            client.close()
+
+            // Return ApiResult
+            val userObj = jsonResponse["user"]?.jsonObject
+            ApiResult(
+                code = response.status.value,
+                success = jsonResponse["success"]?.jsonPrimitive?.boolean ?: false,
+                message = jsonResponse["message"]?.jsonObject?.mapValues { it.value.jsonPrimitive.content } ?: mapOf(),
+                user = userObj?.get("id")?.jsonPrimitive?.content,
+                token = jsonResponse["token"]?.jsonPrimitive?.content,
+                userData = if (userObj != null) {
+                    UserLocal(
+                        id = userObj["id"]?.jsonPrimitive?.content ?: "",
+                        token = jsonResponse["token"]?.jsonPrimitive?.content ?: "",
+                        name = userObj["name"]?.jsonPrimitive?.content ?: "",
+                        surname = userObj["surname"]?.jsonPrimitive?.content ?: "",
+                        email = userObj["email"]?.jsonPrimitive?.content ?: ""
+                    )
+                } else {
+                    null
+                }
+            )
+        } catch (e: Exception) {
+            ApiResult(
+                code = 500,
+                success = false,
+                message = mapOf(
+                    "ca" to "Error en renovar la sessió: ${e.message}",
+                    "es" to "Error en renovar la sesión: ${e.message}",
+                    "en" to "Error renewing the session: ${e.message}"
+                ),
+                user = null,
+                token = null,
+                userData = null
+            )
+        }
+    }
 }
 
+// Call to the API to login
+suspend fun loginApiCall(user: UserLogin): ApiResult {
+    return withContext(Dispatchers.IO) {
+        try {
+            val client = HttpClient(Android) {
+                install(ContentNegotiation) {
+                    json(Json {
+                        ignoreUnknownKeys = true
+                        isLenient = true
+                    })
+                }
+            }
+
+            // Make POST request
+            val response: HttpResponse =
+                client.post("https://portam-server.vercel.app/api/auth/login") {
+                    contentType(ContentType.Application.FormUrlEncoded)
+                    setBody(
+                        "email=${user.email}&password=${user.password}&deviceId=${StorageManager.getDeviceId()}"
+                    )
+            }
+
+            val responseBody = response.bodyAsText()
+            val jsonResponse = Json.parseToJsonElement(responseBody).jsonObject
+
+            client.close()
+
+            // Return ApiResult
+            val userObj = jsonResponse["user"]?.jsonObject
+            ApiResult(
+                code = response.status.value,
+                success = jsonResponse["success"]?.jsonPrimitive?.boolean ?: false,
+                message = jsonResponse["message"]?.jsonObject?.mapValues { it.value.jsonPrimitive.content } ?: mapOf(),
+                user = userObj?.get("id")?.jsonPrimitive?.content,
+                token = jsonResponse["token"]?.jsonPrimitive?.content,
+                userData = if (userObj != null) {
+                    UserLocal(
+                        id = userObj["id"]?.jsonPrimitive?.content ?: "",
+                        token = jsonResponse["token"]?.jsonPrimitive?.content ?: "",
+                        name = userObj["name"]?.jsonPrimitive?.content ?: "",
+                        surname = userObj["surname"]?.jsonPrimitive?.content ?: "",
+                        email = userObj["email"]?.jsonPrimitive?.content ?: ""
+                    )
+                } else {
+                    null
+                }
+            )
+        } catch (e: Exception) {
+            ApiResult(
+                code = 500,
+                success = false,
+                message = mapOf(
+                    "ca" to "Error en iniciar la sessió: ${e.message}",
+                    "es" to "Error en iniciar la sesión: ${e.message}",
+                    "en" to "Error on login: ${e.message}"
+                ),
+                user = null,
+                token = null,
+                userData = null
+            )
+        }
+    }
+}
+
+
 // Call to the API to register
-fun registerApiCall(user: User): ApiResult {
-    // Simulate API call delay
-    Thread.sleep(3000)
-    // TODO: Implement API call to register
-    return ApiResult(
-        200,
-        true,
-        mapOf(
-            "ca" to "Registre correcte",
-            "es" to "Registro correcto",
-            "en" to "Registration successful"
-        ),
-        1234567890,
-        "abcdef1234567890",
-        "2025-12-31H23:59:59"
-    )
+suspend fun registerApiCall(user: User): ApiResult {
+    return withContext(Dispatchers.IO) {
+        try {
+            val client = HttpClient(Android) {
+                install(ContentNegotiation) {
+                    json(Json {
+                        ignoreUnknownKeys = true
+                        isLenient = true
+                    })
+                }
+            }
+
+            // Make POST request
+            val response: HttpResponse =
+                client.post("https://portam-server.vercel.app/api/auth/register") {
+                    contentType(ContentType.Application.FormUrlEncoded)
+                    setBody(
+                        "" +
+                                "name=${user.name}" +
+                                "&surname=${user.surname}" +
+                                "&gov_id=${user.gov_id}" +
+                                "&email=${user.email}" +
+                                "&phone=${user.phone}" +
+                                "&birthdate=${user.birthdate}" +
+                                "&password=${user.password}" +
+                                "&deviceId=${StorageManager.getDeviceId()}"
+                    )
+                }
+
+            val responseBody = response.bodyAsText()
+            val jsonResponse = Json.parseToJsonElement(responseBody).jsonObject
+
+            client.close()
+
+            // Return ApiResult
+            val userObj = jsonResponse["user"]?.jsonObject
+            ApiResult(
+                code = response.status.value,
+                success = jsonResponse["success"]?.jsonPrimitive?.boolean ?: false,
+                message = jsonResponse["message"]?.jsonObject?.mapValues { it.value.jsonPrimitive.content } ?: mapOf(),
+                user = userObj?.get("id")?.jsonPrimitive?.content,
+                token = jsonResponse["token"]?.jsonPrimitive?.content,
+                userData = if (userObj != null) {
+                    UserLocal(
+                        id = userObj["id"]?.jsonPrimitive?.content ?: "",
+                        token = jsonResponse["token"]?.jsonPrimitive?.content ?: "",
+                        name = userObj["name"]?.jsonPrimitive?.content ?: "",
+                        surname = userObj["surname"]?.jsonPrimitive?.content ?: "",
+                        email = userObj["email"]?.jsonPrimitive?.content ?: ""
+                    )
+                } else {
+                    null
+                }
+            )
+        } catch (e: Exception) {
+            ApiResult(
+                code = 500,
+                success = false,
+                message = mapOf(
+                    "ca" to "Error en el registre: ${e.message}",
+                    "es" to "Error en el registro: ${e.message}",
+                    "en" to "Error on register: ${e.message}"
+                ),
+                user = null,
+                token = null,
+                userData = null
+            )
+        }
+    }
 }
 
 
@@ -147,9 +325,10 @@ fun LoginScreen(
     modifier: Modifier = Modifier,
     onLoginSuccess : () -> Unit = {}
 ) {
+    val context = LocalContext.current
     val focusManager = LocalFocusManager.current
     var showRegister by remember { mutableStateOf(false) }
-    var step by remember { mutableStateOf(Steps.Start) }
+    var step by remember { mutableStateOf(Steps.Loading) }
 
     // Intercept system back / gesture and call the provided onBack lambda
     BackHandler(enabled = true) {
@@ -162,7 +341,8 @@ fun LoginScreen(
     var userLogin by remember { mutableStateOf(UserLogin("", "")) }
 
     // Registration state variables
-    var userRegister by remember { mutableStateOf(User(0, "", "", "", "", "", "", "")) }
+    var userRegister by remember { mutableStateOf(
+        User(0, "", "", "", "", "", "", "")) }
     var passwordConfirm by remember { mutableStateOf("") }
     var registerEmpty by remember { mutableStateOf(false) }
     var showDatePicker by remember { mutableStateOf(false) }
@@ -228,15 +408,53 @@ fun LoginScreen(
             // Full height column with loading indicator
             Column(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(PaddingLarge)
-                    .verticalScroll(rememberScrollState()),
+                    .fillMaxWidth()
+                    .weight(1f),
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 CircularProgressIndicator(
                     color = MaterialTheme.colorScheme.primary
                 )
+            }
+
+            // Call to the API to check-session
+            LaunchedEffect(Unit) {
+                // Handle first launch
+                withContext(Dispatchers.IO) {
+                    if (StorageManager.isFirstLaunch()) {
+                        StorageManager.firstLaunch(context)
+                    }
+                }
+
+                // If not logged in, go to start
+                if (!StorageManager.isLoggedIn()) {
+                    Thread.sleep(2000)
+                    step = Steps.Start
+                    return@LaunchedEffect
+                }
+
+                // If logged in, check session validity
+                withContext(Dispatchers.IO) {
+                    checkSessionApiResult = checkSessionApiCall()
+                }
+
+                if (checkSessionApiResult?.success == true) {
+                    // Save renewed login info to storage
+                    withContext(Dispatchers.IO) {
+                        StorageManager.login(
+                            checkSessionApiResult!!.token!!,
+                            checkSessionApiResult!!.user!!,
+                            checkSessionApiResult!!.userData!!.name,
+                            checkSessionApiResult!!.userData!!.surname,
+                            checkSessionApiResult!!.userData!!.email
+                        )
+                    }
+
+                    onLoginSuccess()
+                } else {
+                    step = Steps.Start
+                }
             }
         }
 
@@ -453,6 +671,17 @@ fun LoginScreen(
                                 loginApiResult = loginApiCall(userLogin)
                             }
                             if (loginApiResult?.success == true) {
+                                // Save login info to storage
+                                withContext(Dispatchers.IO) {
+                                    StorageManager.login(
+                                        loginApiResult!!.token!!,
+                                        loginApiResult!!.user!!,
+                                        loginApiResult!!.userData!!.name,
+                                        loginApiResult!!.userData!!.surname,
+                                        loginApiResult!!.userData!!.email
+                                    )
+                                }
+
                                 onLoginSuccess()
                             } else {
                                 step = Steps.Error
