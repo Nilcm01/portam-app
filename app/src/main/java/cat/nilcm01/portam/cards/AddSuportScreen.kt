@@ -43,8 +43,23 @@ import cat.nilcm01.portam.MainActivity
 import cat.nilcm01.portam.ui.theme.success
 import cat.nilcm01.portam.ui.theme.transparent
 import cat.nilcm01.portam.ui.values.*
+import cat.nilcm01.portam.utils.StorageManager
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.android.Android
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.request.get
+import io.ktor.client.request.post
+import io.ktor.client.request.setBody
+import io.ktor.client.statement.HttpResponse
+import io.ktor.client.statement.bodyAsText
+import io.ktor.http.contentType
+import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.boolean
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 
 private object StepsAddSuport {
     const val Start = 1
@@ -72,18 +87,57 @@ class SuportApiResult(
 var suportApiResultGlobal: SuportApiResult? = null
 
 // Call to the API to add suport
-fun addSuportApiCall(uid: String): SuportApiResult {
-    // Simulate API call delay
-    Thread.sleep(3000)
-    // TODO: Implement API call
-    return SuportApiResult(
-        200,
-        true,
-        "Suport is already registered to another user.",
-        uid,
-        "1234567890",
-        "2025-12-31"
-    )
+suspend fun addSuportApiCall(uid: String): SuportApiResult {
+    return withContext(Dispatchers.IO) {
+        try {
+            val client = HttpClient(Android) {
+                install(ContentNegotiation) {
+                    json(Json {
+                        ignoreUnknownKeys = true
+                        isLenient = true
+                    })
+                }
+            }
+
+            // Make GET request
+            val response: HttpResponse =
+                client.post(
+                    "https://portam-server.vercel.app/api/users/" +
+                            "${StorageManager.getUserData()["userId"]}/suports"
+                ) {
+                    contentType(io.ktor.http.ContentType.Application.FormUrlEncoded)
+                    setBody(
+                        "uid=${uid}"
+                    )
+                }
+
+            val responseBody = response.bodyAsText()
+            val jsonResponse = Json.parseToJsonElement(responseBody).jsonObject
+
+            client.close()
+
+            // Return ApiResult
+            val suport = jsonResponse["suport"]?.jsonObject
+            SuportApiResult(
+                i_code = response.status.value,
+                i_success = jsonResponse["success"]?.jsonPrimitive?.boolean ?: false,
+                i_message = jsonResponse["error"]?.jsonPrimitive?.content
+                    ?: "Suport afegit correctament",
+                i_uid = uid,
+                i_suport = "",
+                i_activation = suport?.get("activation")?.jsonPrimitive?.content ?: ""
+            )
+        } catch (e: Exception) {
+            SuportApiResult(
+                i_code = -1,
+                i_success = false,
+                i_message = "Error en afegir el suport: ${e.localizedMessage}",
+                i_uid = "",
+                i_suport = "",
+                i_activation = ""
+            )
+        }
+    }
 }
 
 @Composable

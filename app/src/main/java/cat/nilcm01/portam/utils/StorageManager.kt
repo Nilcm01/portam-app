@@ -256,13 +256,13 @@ object StorageManager {
 
     // Virtual NFC Card
 
-    fun setVirtualCardUid(uid: String) {
+    /*fun setVirtualCardUid(uid: String) {
         saveSecureString(StorageKeys.NFC_CARD_UID, uid)
     }
 
     fun getVirtualCardUid(): String? {
         return getSecureString(StorageKeys.NFC_CARD_UID, null)
-    }
+    }*/
 
     // Device ID
 
@@ -319,16 +319,6 @@ object StorageManager {
             android.provider.Settings.Secure.ANDROID_ID
         ) ?: java.util.UUID.randomUUID().toString()
         setDeviceId(deviceId)
-
-        // NFC_CARD_UID: 16 random hex characters
-        val nfcCardUid = List(16) {
-            val hexChars = "0123456789abcdef"
-            hexChars.random()
-        }.joinToString("")
-        setVirtualCardUid(nfcCardUid)
-
-        // Mark first launch completed
-        saveSecureBoolean(StorageKeys.FIRST_LAUNCH, false)
     }
 
 
@@ -359,6 +349,6 @@ object StorageKeys {
     const val USER_EMAIL = "user_email"
 
     // Digital NFC suport
-    const val NFC_CARD_UID = "nfc_card_uid"
+    //const val NFC_CARD_UID = "nfc_card_uid" // The UID now used is the device_id
     const val DEVICE_ID = "device_id"
 }

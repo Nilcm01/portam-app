@@ -31,6 +31,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.autofill.ContentType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -43,8 +44,26 @@ import cat.nilcm01.portam.ui.values.IconSizeMediumSmall
 import cat.nilcm01.portam.ui.values.PaddingLarge
 import cat.nilcm01.portam.ui.values.PaddingMedium
 import cat.nilcm01.portam.ui.values.PaddingSmall
+import cat.nilcm01.portam.utils.StorageManager
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.android.Android
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.request.post
+import io.ktor.client.request.setBody
+import io.ktor.client.statement.HttpResponse
+import io.ktor.http.contentType
+import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
+import io.ktor.client.*
+import io.ktor.client.engine.android.*
+import io.ktor.client.plugins.contentnegotiation.*
+import io.ktor.client.request.*
+import io.ktor.client.statement.*
+import io.ktor.http.*
+import io.ktor.serialization.kotlinx.json.*
+import kotlinx.serialization.json.*
 
 
 private object Steps {
@@ -63,21 +82,59 @@ data class Validation(
 
 data class ApiResult(
     val success: Boolean,
-    val user_id: Int,
-    val validations: List<Validation>
+    val user_id: String,
+    val validations: List<Validation>?
 )
 
-fun getHistoryFromApi(): ApiResult {
-    // Simulate API call
-    return ApiResult(
-        success = true,
-        user_id = 12756483,
-        validations = listOf(
-            Validation(1, "2025-06-01T10:00:00Z", "Rambla Just Oliveras", "7812558f7a6f", "T-10 - 1 Zona"),
-            Validation(2, "2025-06-02T12:30:00Z", "Badalona Pompeu Fabra", "7812558f7a6f", "T-Jove"),
-            Validation(3, "2025-06-03T14:15:00Z", "Zona Universitària", "7812558f7a6f", "T-Mes - 3 Zones")
-        )
-    )
+suspend fun getHistoryFromApi(): ApiResult {
+    return withContext(Dispatchers.IO) {
+        try {
+            val client = HttpClient(Android) {
+                install(ContentNegotiation) {
+                    json(Json {
+                        ignoreUnknownKeys = true
+                        isLenient = true
+                    })
+                }
+            }
+
+            // Make GET request
+            val response: HttpResponse =
+                client.get(
+                    "https://portam-server.vercel.app/api/validation/history/" +
+                            "${StorageManager.getUserData()["userId"]}") {
+                    contentType(io.ktor.http.ContentType.Application.Json)
+                }
+
+            val responseBody = response.bodyAsText()
+            val jsonResponse = Json.parseToJsonElement(responseBody).jsonObject
+
+            client.close()
+
+            // Return ApiResult
+            val validations = jsonResponse["validations"]?.jsonArray
+            ApiResult(
+                success = jsonResponse["success"]?.jsonPrimitive?.boolean ?: false,
+                user_id = jsonResponse["user_id"]?.jsonPrimitive?.content ?: "",
+                validations = validations?.map { validationJsonElement ->
+                    val validationObject = validationJsonElement.jsonObject
+                    Validation(
+                        id = validationObject["id"]?.jsonPrimitive?.int ?: 0,
+                        timestamp = validationObject["timestamp"]?.jsonPrimitive?.content ?: "",
+                        station = validationObject["station"]?.jsonPrimitive?.content ?: "",
+                        suport = validationObject["suport"]?.jsonPrimitive?.content ?: "",
+                        title = validationObject["title"]?.jsonPrimitive?.content ?: ""
+                    )
+                } ?: emptyList()
+            )
+        } catch (e: Exception) {
+            ApiResult(
+                success = false,
+                user_id = StorageManager.getUserData().get("userId") as String,
+                validations = null
+            )
+        }
+    }
 }
 
 @Composable
@@ -99,12 +156,16 @@ fun HistoryScreen(
         withContext(Dispatchers.IO) {
             val result = getHistoryFromApi()
             if (result.success) {
-                validations = result.validations
+                if (result.validations != null) {
+                    validations = result.validations
 
-                // Order validations by most recent first
-                validations = validations.sortedByDescending { it.timestamp }
+                    // Order validations by most recent first
+                    validations = validations.sortedByDescending { it.timestamp }
 
-                step = Steps.Success
+                    step = Steps.Success
+                } else {
+                    step = Steps.Error
+                }
             } else {
                 step = Steps.Error
             }

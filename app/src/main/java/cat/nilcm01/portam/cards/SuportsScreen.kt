@@ -42,8 +42,23 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import cat.nilcm01.portam.ui.theme.ColorRed
 import cat.nilcm01.portam.ui.values.*
+import cat.nilcm01.portam.utils.StorageManager
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.android.Android
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.request.delete
+import io.ktor.client.request.get
+import io.ktor.client.statement.HttpResponse
+import io.ktor.client.statement.bodyAsText
+import io.ktor.http.contentType
+import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.boolean
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 
 private object Steps {
     const val Loading = 1
@@ -53,62 +68,111 @@ private object Steps {
 
 data class Suport(
     val uid: String,
-    val user: Int,
+    val user: String,
     val activation: String,
     val info: String
 )
 
 data class ApiResult(
     val success: Boolean,
-    val user_id: Int,
+    val user_id: String,
     val suports: List<Suport>
 )
 
 var suports: List<Suport>? = null
 
-fun getSuportsApi(): ApiResult {
-    // Simulate API call delay
-    Thread.sleep(1000)
-    // TODO: Implement API call to login
-    return ApiResult(
-        success = true,
-        user_id = 12345,
-        suports = listOf(
-            Suport(
-                uid = "0493f7b78f6181",
-                user = 12345,
-                activation = "01/01/2024",
-                info = "Targeta física: Genèrica"
-            ),
-            Suport(
-                uid = "0d94e613ff67b2",
-                user = 12345,
-                activation = "11/12/2024",
-                info = "spvirtual::SM-S916B-abcd1234"
-            ),
-            Suport(
-                uid = "e8f629a03c4b2d",
-                user = 12345,
-                activation = "11/12/2024",
-                info = "Targeta física: La Mercè 2026"
-            ),
-            Suport(
-                uid = "17bc4e5a9d3c9f",
-                user = 12345,
-                activation = "21/11/2025",
-                info = "spvirtual::GT-I210-xyz9876"
+suspend fun getSuportsApi(): ApiResult {
+    return withContext(Dispatchers.IO) {
+        try {
+            val client = HttpClient(Android) {
+                install(ContentNegotiation) {
+                    json(Json {
+                        ignoreUnknownKeys = true
+                        isLenient = true
+                    })
+                }
+            }
+
+            // Make GET request
+            val response: HttpResponse =
+                client.get(
+                    "https://portam-server.vercel.app/api/users/" +
+                            "${StorageManager.getUserData()["userId"]}/suports"
+                ) {
+                    contentType(io.ktor.http.ContentType.Application.Json)
+                }
+
+            val responseBody = response.bodyAsText()
+            val jsonResponse = Json.parseToJsonElement(responseBody).jsonObject
+
+            client.close()
+
+            // Return ApiResult
+            val suports = jsonResponse["suports"]?.jsonArray
+            ApiResult(
+                success = jsonResponse["success"]?.jsonPrimitive?.boolean ?: false,
+                user_id = jsonResponse["user_id"]?.jsonPrimitive?.content ?: "",
+                suports = suports?.map { suportJsonElement ->
+                    val suportObject = suportJsonElement.jsonObject
+                    val info =
+                        if (suportObject["info"]?.jsonPrimitive?.content == "" ||
+                            suportObject["info"]?.jsonPrimitive?.content == null ||
+                            suportObject["info"]?.jsonPrimitive?.content.equals("null")) {
+                            "Targeta"
+                        } else {
+                            suportObject["info"]?.jsonPrimitive?.content ?: "Targeta"
+                        }
+                    Suport(
+                        user = suportObject["user"]?.jsonPrimitive?.content ?: "",
+                        activation = suportObject["activation"]?.jsonPrimitive?.content ?: "",
+                        uid = suportObject["uid"]?.jsonPrimitive?.content ?: "",
+                        info = info,
+                    )
+                } ?: emptyList()
             )
-        )
-    )
+        } catch (e: Exception) {
+            ApiResult(
+                success = false,
+                user_id = StorageManager.getUserData().get("userId") as String,
+                suports = emptyList()
+            )
+        }
+    }
 }
 
-fun deleteSuportApi(uid: String): Boolean {
-    // Simulate API call delay
-    Thread.sleep(1000)
-    // TODO: Implement API call to delete suport
-    // Delete this suport from the list
-    suports = suports?.filter { it.uid != uid }
-    return true
+suspend fun deleteSuportApi(uid: String): Boolean {
+    return withContext(Dispatchers.IO) {
+        try {
+            val client = HttpClient(Android) {
+                install(ContentNegotiation) {
+                    json(Json {
+                        ignoreUnknownKeys = true
+                        isLenient = true
+                    })
+                }
+            }
+
+            // Make GET request
+            val response: HttpResponse =
+                client.delete(
+                    "https://portam-server.vercel.app/api/users/" +
+                            "${StorageManager.getUserData()["userId"]}/suports/" +
+                            uid
+                ) {
+                    contentType(io.ktor.http.ContentType.Application.Json)
+                }
+
+            val responseBody = response.bodyAsText()
+            val jsonResponse = Json.parseToJsonElement(responseBody).jsonObject
+
+            client.close()
+
+            // Return boolean
+            return@withContext jsonResponse["success"]?.jsonPrimitive?.boolean ?: false
+        } catch (e: Exception) {
+            return@withContext false
+        }
+    }
 }
 
 @Composable
@@ -123,8 +187,7 @@ fun SuportsScreen(
 
     val context = LocalContext.current
 
-    // TODO: Get the actual device from StorageManager
-    val deviceId = "SM-S916B-abcd1234"
+    val deviceId = StorageManager.getDeviceId()
 
     // Intercept system back / gesture and call the provided onBack lambda
     BackHandler(enabled = true) {
@@ -304,6 +367,12 @@ fun SuportsScreen(
                                 cat.nilcm01.portam.R.drawable.icon_card_band
                             }
 
+                            // From YYYY-MM-DDThh:mm:ss to DD-MM-YYYY
+                            val activationDate = "" +
+                                    suport.activation.subSequence(8, 10) + "-" +
+                                    suport.activation.subSequence(5, 7) + "-" +
+                                    suport.activation.subSequence(0, 4)
+
                             Icon(
                                 painter = painterResource(id = iconRes),
                                 contentDescription = displayName,
@@ -326,7 +395,7 @@ fun SuportsScreen(
                                     textAlign = TextAlign.Left
                                 )
                                 Text(
-                                    "Actiu des de: ${suport.activation}",
+                                    "Actiu des de: $activationDate",
                                     color = MaterialTheme.colorScheme.onSecondary,
                                     textAlign = TextAlign.Left
                                 )
@@ -382,15 +451,20 @@ fun SuportsScreen(
 
                             // Handle deletion
                             LaunchedEffect(Unit) {
-                                withContext(Dispatchers.IO) {
-                                    deleteSuportApi(suport.uid)
+                                val success = deleteSuportApi(suport.uid)
+                                if (success) {
+                                    // Remove from list
+                                    suportsList = suportsList.filter { it.uid != suport.uid }
+                                    deletingUid = null
+                                    // Show toast on Main thread
+                                    Toast.makeText(context, "S'ha eliminat el suport", Toast.LENGTH_SHORT).show()
+                                } else {
+                                    deletingUid = null
+                                    // Show error toast on Main thread
+                                    Toast.makeText(context, "No s'ha pogut eliminar el suport", Toast.LENGTH_SHORT).show()
                                 }
-                                // Remove from list
-                                suportsList = suportsList.filter { it.uid != suport.uid }
-                                deletingUid = null
-                                // Show toast
-                                Toast.makeText(context, "S'ha eliminat el suport", Toast.LENGTH_SHORT).show()
                             }
+
                         }
                     }
 

@@ -44,8 +44,24 @@ import cat.nilcm01.portam.ui.values.IconSizeMediumSmall
 import cat.nilcm01.portam.ui.values.PaddingLarge
 import cat.nilcm01.portam.ui.values.PaddingMedium
 import cat.nilcm01.portam.ui.values.PaddingSmall
+import cat.nilcm01.portam.utils.StorageManager
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.android.Android
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.request.get
+import io.ktor.client.statement.HttpResponse
+import io.ktor.client.statement.bodyAsText
+import io.ktor.http.contentType
+import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.boolean
+import kotlinx.serialization.json.float
+import kotlinx.serialization.json.int
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 
 private object ReceiptsSteps {
     const val Loading = 0
@@ -61,23 +77,58 @@ data class Receipt(
 
 data class ReceiptApiResult(
     val success: Boolean,
-    val user_id: Int,
+    val user_id: String,
     val receipts: List<Receipt>
 )
 
-fun getReceiptsFromApi(): ReceiptApiResult {
-    // Simulate API call
-    return ReceiptApiResult(
-        success = true,
-        user_id = 12756483,
-        receipts = listOf(
-            Receipt(13784871, "2025-06-01T10:00:00Z", 49.99f),
-            Receipt(28363256, "2025-06-15T14:30:00Z", 19.9f),
-            Receipt(38753233, "2025-06-20T09:15:00Z", 5.49f),
-            Receipt(43480234, "2025-06-25T18:45:00Z", 99.95f),
-            Receipt(52378530, "2025-06-30T12:00:00Z", 29.99f)
-        )
-    )
+suspend fun getReceiptsFromApi(): ReceiptApiResult {
+    return withContext(Dispatchers.IO) {
+        try {
+            val client = HttpClient(Android) {
+                install(ContentNegotiation) {
+                    json(Json {
+                        ignoreUnknownKeys = true
+                        isLenient = true
+                    })
+                }
+            }
+
+            // Make GET request
+            val response: HttpResponse =
+                client.get(
+                    "https://portam-server.vercel.app/api/users/" +
+                            "${StorageManager.getUserData()["userId"]}/receipts/"
+                ) {
+                    contentType(io.ktor.http.ContentType.Application.Json)
+                }
+
+            val responseBody = response.bodyAsText()
+            val jsonResponse = Json.parseToJsonElement(responseBody).jsonObject
+
+            client.close()
+
+            // Return ApiResult
+            val receipts = jsonResponse["receipts"]?.jsonArray
+            ReceiptApiResult(
+                success = jsonResponse["success"]?.jsonPrimitive?.boolean ?: false,
+                user_id = jsonResponse["user_id"]?.jsonPrimitive?.content ?: "",
+                receipts = receipts?.map { receiptJsonElement ->
+                    val validationObject = receiptJsonElement.jsonObject
+                    Receipt(
+                        id = validationObject["id"]?.jsonPrimitive?.int ?: 0,
+                        timestamp = validationObject["timestamp"]?.jsonPrimitive?.content ?: "",
+                        amount = validationObject["amount"]?.jsonPrimitive?.float ?: 0.0f
+                    )
+                } ?: emptyList()
+            )
+        } catch (e: Exception) {
+            ReceiptApiResult(
+                success = false,
+                user_id = StorageManager.getUserData().get("userId") as String,
+                receipts = emptyList()
+            )
+        }
+    }
 }
 
 @SuppressLint("DefaultLocale")
@@ -215,6 +266,18 @@ fun ReceiptsScreen(
                     color = MaterialTheme.colorScheme.onBackground,
                 )
                 Spacer(modifier = Modifier.height(PaddingMedium))
+
+                // If no receipts available, show message
+                if (receipts.isEmpty()) {
+                    Spacer(modifier = Modifier.height(PaddingMedium))
+                    Text(
+                        text = "No hi ha factures disponibles.",
+                        style = MaterialTheme.typography.bodyLarge,
+                        textAlign = TextAlign.Center,
+                        color = MaterialTheme.colorScheme.onBackground,
+                        fontStyle = FontStyle.Italic
+                    )
+                }
 
                 // Dynamically list all receipts
                 receipts.forEach { receipt ->
