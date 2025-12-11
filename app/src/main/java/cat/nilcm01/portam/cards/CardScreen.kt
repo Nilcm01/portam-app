@@ -1,5 +1,6 @@
 package cat.nilcm01.portam.cards
 
+import android.app.Activity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -18,6 +19,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -44,6 +46,7 @@ import cat.nilcm01.portam.ui.values.PaddingLarge
 import cat.nilcm01.portam.ui.values.PaddingMedium
 import cat.nilcm01.portam.ui.values.PaddingSmall
 import cat.nilcm01.portam.ui.values.PaddingXXLarge
+import cat.nilcm01.portam.utils.NfcEmiter
 import cat.nilcm01.portam.utils.StorageManager
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.android.Android
@@ -144,6 +147,22 @@ fun CardScreen(
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
     var step by remember { mutableStateOf(CardSteps.Loading) }
+
+    // NFC Emulation - Enable when this screen is active, disable when it's not
+    val activity = context as? Activity
+    if (activity != null) {
+        val nfcEmiter = remember { NfcEmiter(activity) }
+
+        DisposableEffect(Unit) {
+            // Enable NFC emulation when the screen enters composition
+            nfcEmiter.enable()
+
+            onDispose {
+                // Disable NFC emulation when the screen leaves composition
+                nfcEmiter.disable()
+            }
+        }
+    }
 
     Column(
         modifier = modifier

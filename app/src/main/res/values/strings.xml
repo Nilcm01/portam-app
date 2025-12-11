@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">Porta\'m</string>
+    <string name="nfc_service_description">Porta\'m: Targeta NFC Virtual</string>
+    <string name="nfc_aid_description">Porta\'m: Simulació de Targeta NFC</string>
 </resources>
