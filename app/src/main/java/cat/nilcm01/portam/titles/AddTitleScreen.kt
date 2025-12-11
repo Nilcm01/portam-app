@@ -47,8 +47,27 @@ import cat.nilcm01.portam.ui.values.PaddingMedium
 import cat.nilcm01.portam.ui.values.PaddingSmall
 import cat.nilcm01.portam.ui.values.PaddingXLarge
 import cat.nilcm01.portam.ui.values.PaddingXXLarge
+import cat.nilcm01.portam.utils.StorageManager
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.android.Android
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.request.delete
+import io.ktor.client.request.get
+import io.ktor.client.request.post
+import io.ktor.client.request.setBody
+import io.ktor.client.statement.HttpResponse
+import io.ktor.client.statement.bodyAsText
+import io.ktor.http.contentType
+import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.boolean
+import kotlinx.serialization.json.floatOrNull
+import kotlinx.serialization.json.intOrNull
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 
 private object AddSteps {
     const val Loading = 0
@@ -61,7 +80,7 @@ private object AddSteps {
 }
 
 data class Title(
-    val id: Int,
+    val id: String,
     val name: String,
     val description: String,
     val uses: Int?,             // Number of uses (NULL = unlimited uses)
@@ -74,67 +93,141 @@ data class Title(
 
 data class TitlesForUserApiResult(
     val success: Boolean,
-    val user: Int,
+    val user: String,
     val titles: List<Title>?
 )
 
-data class AddTitleApiResult(
-    val success: Boolean,
-    val message: Title          // The generated userTitle
-)
+suspend fun getTitlesForUser(): TitlesForUserApiResult {
+    return withContext(Dispatchers.IO) {
+        try {
+            val client = HttpClient(Android) {
+                install(ContentNegotiation) {
+                    json(Json {
+                        ignoreUnknownKeys = true
+                        isLenient = true
+                    })
+                }
+            }
 
-fun getTitlesForUser(): TitlesForUserApiResult {
-    // Simulate API call delay
-    Thread.sleep(1000)
-    // TODO: Implement API call to fetch titles for user
-    return TitlesForUserApiResult(
-        success = true,
-        user = 123,
-        titles = listOf(
-            Title(
-                id = 1,
-                name = "Títol d'exemple",
-                description = "Aquest és un títol d'exemple.",
-                uses = null,
-                expiration = 30,
-                price = 10.0f,
-                num_zones = 2,
-                link = 90,
-                re_entry = null
-            ),
-            Title(
-                id = 2,
-                name = "Títol de prova",
-                description = "Aquest és un altre títol de prova.",
-                uses = 5,
-                expiration = null,
-                price = 5.0f,
-                num_zones = 1,
-                link = null,
-                re_entry = 30
+            // Make GET request
+            val response: HttpResponse =
+                client.get(
+                    "https://portam-server.vercel.app/api/titles/user/" +
+                            "${StorageManager.getUserData()["userId"]}/available"
+                ) {
+                    contentType(io.ktor.http.ContentType.Application.Json)
+                }
+
+            val responseBody = response.bodyAsText()
+            val jsonResponse = Json.parseToJsonElement(responseBody).jsonObject
+
+            client.close()
+
+            // Return TitlesForUserApiResult
+            val success = jsonResponse["success"]?.jsonPrimitive?.boolean ?: false
+            val titlesJsonArray = jsonResponse["titles"]?.jsonArray
+            val titles = titlesJsonArray?.map { titleJsonElement ->
+                val titleObject = titleJsonElement.jsonObject
+                Title(
+                    id = titleObject["id"]?.jsonPrimitive?.content ?: "",
+                    name = titleObject["name"]?.jsonPrimitive?.content ?: "",
+                    description = titleObject["description"]?.jsonPrimitive?.content ?: "",
+                    uses = titleObject["uses"]?.jsonPrimitive?.intOrNull,
+                    expiration = titleObject["expiration"]?.jsonPrimitive?.intOrNull,
+                    price = titleObject["price"]?.jsonPrimitive?.floatOrNull ?: 0.0f,
+                    num_zones = titleObject["num_zones"]?.jsonPrimitive?.intOrNull ?: 0,
+                    link = titleObject["link"]?.jsonPrimitive?.intOrNull,
+                    re_entry = titleObject["re_entry"]?.jsonPrimitive?.intOrNull
+                )
+            }
+
+            TitlesForUserApiResult(
+                success = success,
+                user = StorageManager.getUserData()["userId"] as String,
+                titles = titles
             )
-        )
-    )
+        } catch (e: Exception) {
+            TitlesForUserApiResult(
+                success = false,
+                user = StorageManager.getUserData()["userId"] as String,
+                titles = null
+            )
+        }
+    }
 }
 
-fun addTitleToUser(titleId: Int): AddTitleApiResult {
-    // Simulate API call delay
-    Thread.sleep(1000)
-    // TODO: Implement API call to add title to user
-    return AddTitleApiResult(
-        success = true,
-        message = Title(
-            id = titleId,
-            name = "Títol afegit",
-            description = "Aquest títol ha estat afegit correctament.",
-            uses = null,
-            expiration = 30,
-            price = 10.0f,
-            num_zones = 2,
-            link = 90,
-            re_entry = null
-        )
-    )
+suspend fun addTitleToUser(titleId: String): Boolean {
+    return withContext(Dispatchers.IO) {
+        try {
+            val client = HttpClient(Android) {
+                install(ContentNegotiation) {
+                    json(Json {
+                        ignoreUnknownKeys = true
+                        isLenient = true
+                    })
+                }
+            }
+
+            // Make POST request
+            val response: HttpResponse =
+                client.post(
+                    "https://portam-server.vercel.app/api/titles/user/" +
+                            "${StorageManager.getUserData()["userId"]}"
+                ) {
+                    contentType(io.ktor.http.ContentType.Application.FormUrlEncoded)
+                    setBody(
+                        "title=$titleId"
+                    )
+                }
+
+            val responseBody = response.bodyAsText()
+            val jsonResponse = Json.parseToJsonElement(responseBody).jsonObject
+
+            client.close()
+
+            // Return boolean
+            return@withContext jsonResponse["success"]?.jsonPrimitive?.boolean ?: false
+        } catch (e: Exception) {
+            return@withContext false
+        }
+    }
+}
+
+suspend fun createReceipt(amount: Float): Boolean {
+    return withContext(Dispatchers.IO) {
+        try {
+            val client = HttpClient(Android) {
+                install(ContentNegotiation) {
+                    json(Json {
+                        ignoreUnknownKeys = true
+                        isLenient = true
+                    })
+                }
+            }
+
+            // Make POST request
+            val response: HttpResponse =
+                client.post(
+                    "https://portam-server.vercel.app/api/users/" +
+                            "${StorageManager.getUserData()["userId"]}/receipts"
+                ) {
+                    contentType(io.ktor.http.ContentType.Application.FormUrlEncoded)
+                    setBody(
+                        "amount=$amount"
+                    )
+                }
+
+            val responseBody = response.bodyAsText()
+            val jsonResponse = Json.parseToJsonElement(responseBody).jsonObject
+
+            client.close()
+
+            // Return boolean
+            return@withContext jsonResponse["success"]?.jsonPrimitive?.boolean ?: false
+        } catch (e: Exception) {
+            return@withContext false
+        }
+    }
 }
 
 
@@ -534,15 +627,19 @@ fun AddTitleScreen(
                 // Handle payment in background
                 LaunchedEffect(Unit) {
                     withContext(Dispatchers.IO) {
-                        val result = addTitleToUser(selectedTitle!!.id)
+                        val titleId = selectedTitle!!.id
+                        val titlePrice = selectedTitle!!.price
+                        val result = addTitleToUser(titleId)
                         clearSelectedTitle()
-                        if (result.success) {
-                            step = AddSteps.Success
+                        step = if (result) {
+                            val receiptResult = createReceipt(titlePrice)
+                            AddSteps.Success
                         } else {
-                            step = AddSteps.Error
+                            AddSteps.Error
                         }
                     }
                 }
+
             }
 
             // Success

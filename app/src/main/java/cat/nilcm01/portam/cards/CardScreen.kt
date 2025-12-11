@@ -58,6 +58,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.boolean
 import kotlinx.serialization.json.int
+import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
@@ -114,8 +115,8 @@ suspend fun getActiveUserTitleApiCall(): ActiveUserTitle {
                 id = title?.get("id")?.jsonPrimitive?.content,
                 user = title?.get("user")?.jsonPrimitive?.content,
                 name = title?.get("title_name")?.jsonPrimitive?.content,
-                zone_origin = title?.get("zone_origin")?.jsonPrimitive?.int,
-                uses_left = title?.get("uses_left")?.jsonPrimitive?.int,
+                zone_origin = title?.get("zone_origin")?.jsonPrimitive?.intOrNull,
+                uses_left = title?.get("uses_left")?.jsonPrimitive?.intOrNull,
                 expiration = title?.get("expiration")?.jsonPrimitive?.content
             )
         } catch (e: Exception) {
@@ -259,8 +260,12 @@ fun CardScreen(
                         textAlign = TextAlign.Left,
                         color = MaterialTheme.colorScheme.onSecondary
                     )
+                    val zone = if (activeUserTitle?.zone_origin == null)
+                        "pendent"
+                    else
+                        activeUserTitle?.zone_origin
                     Text(
-                        "Zona d'origen: " + activeUserTitle?.zone_origin,
+                        "Zona d'origen: $zone",
                         modifier = Modifier
                             .padding(0.dp)
                             .fillMaxWidth(),

@@ -46,8 +46,26 @@ import cat.nilcm01.portam.ui.values.IconSizeMediumSmall
 import cat.nilcm01.portam.ui.values.PaddingLarge
 import cat.nilcm01.portam.ui.values.PaddingMedium
 import cat.nilcm01.portam.ui.values.PaddingSmall
+import cat.nilcm01.portam.utils.StorageManager
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.android.Android
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.request.get
+import io.ktor.client.request.post
+import io.ktor.client.statement.HttpResponse
+import io.ktor.client.statement.bodyAsText
+import io.ktor.http.contentType
+import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.boolean
+import kotlinx.serialization.json.int
+import kotlinx.serialization.json.intOrNull
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlin.collections.emptyList
 
 private object MainSteps {
     const val Loading = 1
@@ -56,12 +74,11 @@ private object MainSteps {
 }
 
 data class UserTitle(
-    val id: Int,
-    val title: Int,
+    val id: String,
+    val title: String,
     val user: String,
     val name: String,
     val description: String,
-    val uses: Int,
     val uses_left: Int?, // null means unlimited uses
     val first_use: String,
     val expiration: String,
@@ -74,96 +91,116 @@ data class UserTitle(
 
 data class MainApiResult(
     val success: Boolean,
-    val user_id: Int,
+    val user_id: String,
     val user_titles: List<UserTitle>
 )
 
-fun getUserTitlesApi(): MainApiResult {
-    // Simulate API call delay
-    Thread.sleep(1000)
-    // TODO: Implement API call to fetch user titles
-    return MainApiResult(
-        success = true,
-        user_id = 123,
-        user_titles = listOf(
-            UserTitle(
-                id = 200474,
-                title = 10,
-                user = "1234567890ab",
-                name = "T-Mes - 3 zones",
-                description = "10 viatges unipersonals en 3 zones durant 30 dies.",
-                uses = 10,
-                uses_left = 5,
-                first_use = "2025-11-01T10:03:42Z",
-                expiration = "2025-12-01T10:03:42Z",
-                re_entry = 15,
-                link = 120,
-                num_zones = 3,
-                zone_origin = 1,
-                active = false
-            ),
-            UserTitle(
-                id = 200475,
-                title = 11,
-                user = "1234567890ab",
-                name = "T-10 - 2 zones",
-                description = "10 viatges multipersonals en 2 zones.",
-                uses = 10,
-                uses_left = 2,
-                first_use = "2025-11-12T10:03:42Z",
-                expiration = "2025-12-12T10:03:42Z",
-                re_entry = 0,
-                link = 90,
-                num_zones = 2,
-                zone_origin = 1,
-                active = true
-            ),
-            UserTitle(
-                id = 200476,
-                title = 11,
-                user = "1234567890ab",
-                name = "T-10 - 1 zona",
-                description = "10 viatges multipersonals en 1 zona.",
-                uses = 10,
-                uses_left = 0,
-                first_use = "2025-11-12T10:03:42Z",
-                expiration = "2025-12-12T10:03:42Z",
-                re_entry = 0,
-                link = 90,
-                num_zones = 1,
-                zone_origin = 1,
-                active = false
-            ),
-            UserTitle(
-                id = 200478,
-                title = 11,
-                user = "1234567890ab",
-                name = "T-10 - 1 zona",
-                description = "10 viatges multipersonals en 1 zona.",
-                uses = 10,
-                uses_left = 2,
-                first_use = "2025-11-12T10:03:42Z",
-                expiration = "2025-11-12T10:03:42Z",
-                re_entry = 0,
-                link = 90,
-                num_zones = 1,
-                zone_origin = 1,
-                active = false
+suspend fun getUserTitlesApi(): MainApiResult {
+    return withContext(Dispatchers.IO) {
+        try {
+            val client = HttpClient(Android) {
+                install(ContentNegotiation) {
+                    json(Json {
+                        ignoreUnknownKeys = true
+                        isLenient = true
+                    })
+                }
+            }
+
+            // Make GET request
+            val response: HttpResponse =
+                client.get(
+                    "https://portam-server.vercel.app/api/titles/user/" +
+                            "${StorageManager.getUserData()["userId"]}"
+                ) {
+                    contentType(io.ktor.http.ContentType.Application.Json)
+                }
+
+            val responseBody = response.bodyAsText()
+            val jsonResponse = Json.parseToJsonElement(responseBody).jsonObject
+
+            client.close()
+
+            // Return MainApiResult
+            val success = jsonResponse["success"]?.jsonPrimitive?.boolean ?: false
+            val titles = jsonResponse["titles"]?.jsonArray
+            val userTitles = titles?.map { titleElement ->
+                val titleObj = titleElement.jsonObject
+                UserTitle(
+                    id = titleObj["id"]?.jsonPrimitive?.content ?: "",
+                    title = titleObj["title"]?.jsonPrimitive?.content ?: "",
+                    user = titleObj["user"]?.jsonPrimitive?.content ?: "",
+                    name = titleObj["title_name"]?.jsonPrimitive?.content ?: "",
+                    description = titleObj["title_description"]?.jsonPrimitive?.content ?: "",
+                    uses_left = titleObj["uses_left"]?.jsonPrimitive?.intOrNull,
+                    first_use = titleObj["first_use"]?.jsonPrimitive?.content ?: "",
+                    expiration = titleObj["expiration"]?.jsonPrimitive?.content ?: "",
+                    re_entry = titleObj["re_entry"]?.jsonPrimitive?.int ?: 0,
+                    link = titleObj["link"]?.jsonPrimitive?.int ?: 0,
+                    num_zones = titleObj["num_zones"]?.jsonPrimitive?.int ?: 0,
+                    zone_origin = titleObj["zone_origin"]?.jsonPrimitive?.intOrNull,
+                    active = titleObj["active"]?.jsonPrimitive?.boolean ?: false
+                )
+            } ?: emptyList()
+            MainApiResult(
+                success = success,
+                user_id = StorageManager.getUserData()["userId"].toString(),
+                user_titles = userTitles
             )
-        )
-    )
+        } catch (e: Exception) {
+            MainApiResult(
+                success = false,
+                user_id = StorageManager.getUserData()["userId"].toString(),
+                user_titles = emptyList()
+            )
+        }
+    }
 }
 
-fun activateTitleApi(id: Int, currentTitles: List<UserTitle>): List<UserTitle> {
-    // Simulate API call delay
-    Thread.sleep(1000)
-    // TODO: Implement API call to activate title
-    // Set all titles to inactive except the one with the given id
-    return currentTitles.map { title ->
-        if (title.id == id) {
-            title.copy(active = true)
-        } else {
-            title.copy(active = false)
+suspend fun activateTitleApi(id: String, currentTitles: List<UserTitle>): List<UserTitle> {
+    return withContext(Dispatchers.IO) {
+        try {
+            val client = HttpClient(Android) {
+                install(ContentNegotiation) {
+                    json(Json {
+                        ignoreUnknownKeys = true
+                        isLenient = true
+                    })
+                }
+            }
+
+            // Make GET request
+            val response: HttpResponse =
+                client.post(
+                    "https://portam-server.vercel.app/api/titles/user/" +
+                            "${StorageManager.getUserData()["userId"]}/" +
+                            "$id/activate"
+                ) {
+                    contentType(io.ktor.http.ContentType.Application.Json)
+                }
+
+            val responseBody = response.bodyAsText()
+            val jsonResponse = Json.parseToJsonElement(responseBody).jsonObject
+
+            client.close()
+
+            // Return MainApiResult
+            val success = jsonResponse["success"]?.jsonPrimitive?.boolean ?: false
+
+            if (success) {
+                // Set all titles to inactive except the one with the given id
+                currentTitles.map { title ->
+                    if (title.id == id) {
+                        title.copy(active = true)
+                    } else {
+                        title.copy(active = false)
+                    }
+                }
+            } else {
+                currentTitles
+            }
+        } catch (e: Exception) {
+            currentTitles
         }
     }
 }
@@ -177,7 +214,7 @@ fun TitlesScreen(
     val context = LocalContext.current
     var step by remember { mutableStateOf(MainSteps.Loading) }
     var userTitlesList by remember { mutableStateOf<List<UserTitle>>(emptyList()) }
-    var activatingTitle by remember { mutableStateOf<Int?>(null) }
+    var activatingTitle by remember { mutableStateOf<String?>(null) }
 
     // Separate titles into active and expired based on userTitlesList
     val currentTime = remember { java.time.Instant.now().toString() }
@@ -346,7 +383,12 @@ fun TitlesScreen(
                     val isActivating = activatingTitle == title.id
                     // Date format: DD-MM-YYYY
                     val expDateOriginal = title.expiration.take(10)
-                    val expirationDate = "${expDateOriginal.substring(8, 10)}-${expDateOriginal.substring(5, 7)}-${expDateOriginal.substring(0, 4)}"
+                    val expirationDate = "${expDateOriginal.substring(8, 10)}-${
+                        expDateOriginal.substring(
+                            5,
+                            7
+                        )
+                    }-${expDateOriginal.substring(0, 4)}"
 
                     Box {
                         Row(
@@ -455,11 +497,28 @@ fun TitlesScreen(
                             LaunchedEffect(Unit) {
                                 withContext(Dispatchers.IO) {
                                     val updatedTitles = activateTitleApi(title.id, userTitlesList)
-                                    userTitlesList = updatedTitles
+                                    activatingTitle = null
+
+                                    // If both previous and updated titles have the same active title, no change
+                                    val previousActiveTitle = userTitlesList.find { it.active }
+                                    val updatedActiveTitle = updatedTitles.find { it.active }
+                                    if (previousActiveTitle?.id == updatedActiveTitle?.id) {
+                                        withContext(Dispatchers.Main) {
+                                            Toast.makeText(context,
+                                                "No s'ha pogut activar el títol",
+                                                Toast.LENGTH_SHORT)
+                                                .show()
+                                        }
+                                    } else {
+                                        userTitlesList = updatedTitles
+                                        withContext(Dispatchers.Main) {
+                                            Toast.makeText(context,
+                                                "S'ha activat el títol",
+                                                Toast.LENGTH_SHORT)
+                                                .show()
+                                        }
+                                    }
                                 }
-                                activatingTitle = null
-                                Toast.makeText(context, "S'ha activat el títol", Toast.LENGTH_SHORT)
-                                    .show()
                             }
                         }
                     }
@@ -509,7 +568,12 @@ fun TitlesScreen(
                 expiredUserTitles.forEach { title ->
                     // Date format: DD-MM-YYYY
                     val expDateOriginal = title.expiration.take(10)
-                    val expirationDate = "${expDateOriginal.substring(8, 10)}-${expDateOriginal.substring(5, 7)}-${expDateOriginal.substring(0, 4)}"
+                    val expirationDate = "${expDateOriginal.substring(8, 10)}-${
+                        expDateOriginal.substring(
+                            5,
+                            7
+                        )
+                    }-${expDateOriginal.substring(0, 4)}"
 
                     Box {
                         Row(
