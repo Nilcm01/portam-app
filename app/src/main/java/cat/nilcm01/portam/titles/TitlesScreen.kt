@@ -434,7 +434,7 @@ fun TitlesScreen(
                                     textAlign = TextAlign.Left
                                 )
                                 Text(
-                                    text = "Viatges restants: ${title.uses_left ?: "Ilimitats"}",
+                                    text = "Viatges restants: ${title.uses_left ?: "Il·limitats"}",
                                     color = MaterialTheme.colorScheme.onSecondary,
                                     textAlign = TextAlign.Left
                                 )
