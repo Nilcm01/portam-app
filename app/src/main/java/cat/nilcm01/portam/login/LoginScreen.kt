@@ -1,9 +1,11 @@
 package cat.nilcm01.portam.login
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.Image
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -38,6 +40,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -47,6 +50,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import cat.nilcm01.portam.R
 import cat.nilcm01.portam.ui.theme.transparent
 import cat.nilcm01.portam.ui.values.CornerRadiusMedium
 import cat.nilcm01.portam.ui.values.CornerRadiusSmall
@@ -393,11 +397,15 @@ fun LoginScreen(
             horizontalArrangement = Arrangement.Start,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                "Porta'm",
-                fontSize = 64.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
+            Image(
+                painter = painterResource(id =
+                    if (!isSystemInDarkTheme())
+                        R.drawable.logo_light_long
+                    else R.drawable.logo_dark_long
+                ),
+                contentDescription = "Porta'm",
+                modifier = Modifier
+                    .height(64.dp)
             )
         }
         Spacer(modifier = Modifier.height(24.dp))

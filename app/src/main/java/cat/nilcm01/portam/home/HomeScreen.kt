@@ -1,7 +1,9 @@
 package cat.nilcm01.portam.home
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -62,13 +64,18 @@ fun HomeScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(4.dp, 8.dp),
-                contentAlignment = Alignment.TopStart
+                contentAlignment = Alignment.CenterStart
             ) {
-                Text(
-                    "Porta'm",
-                    fontSize = 64.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
+                Image(
+                    painter = painterResource(id =
+                        if (!isSystemInDarkTheme())
+                            R.drawable.logo_light_long
+                        else R.drawable.logo_dark_long
+                    ),
+                    contentDescription = "Porta'm",
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .height(64.dp)
                 )
             }
         }

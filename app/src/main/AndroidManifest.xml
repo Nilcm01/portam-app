@@ -11,9 +11,9 @@
             android:allowBackup="true"
             android:dataExtractionRules="@xml/data_extraction_rules"
             android:fullBackupContent="@xml/backup_rules"
-            android:icon="@drawable/logo_beta1_square"
+            android:icon="@drawable/logo_primary_squircle"
             android:label="@string/app_name"
-            android:roundIcon="@drawable/logo_beta1_circle"
+            android:roundIcon="@drawable/logo_primary"
             android:supportsRtl="true"
             android:theme="@style/Theme.Portam">
         <activity
