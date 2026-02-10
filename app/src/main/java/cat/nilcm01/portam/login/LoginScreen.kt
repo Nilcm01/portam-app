@@ -56,6 +56,7 @@ import cat.nilcm01.portam.ui.values.CornerRadiusMedium
 import cat.nilcm01.portam.ui.values.CornerRadiusSmall
 import cat.nilcm01.portam.ui.values.PaddingLarge
 import cat.nilcm01.portam.ui.values.PaddingMedium
+import cat.nilcm01.portam.utils.LocalVirtualCardHandler
 import cat.nilcm01.portam.utils.StorageManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -264,6 +265,7 @@ suspend fun registerApiCall(user: User): ApiResult {
             }
 
             // Make POST request
+            val deviceId = StorageManager.getDeviceId()
             val response: HttpResponse =
                 client.post("https://portam-server.vercel.app/api/auth/register") {
                     contentType(ContentType.Application.FormUrlEncoded)
@@ -271,12 +273,12 @@ suspend fun registerApiCall(user: User): ApiResult {
                         "" +
                                 "name=${user.name}" +
                                 "&surname=${user.surname}" +
-                                "&gov_id=${user.gov_id}" +
+                                "&govId=${user.gov_id}" +
                                 "&email=${user.email}" +
                                 "&phone=${user.phone}" +
                                 "&birthdate=${user.birthdate}" +
                                 "&password=${user.password}" +
-                                "&deviceId=${StorageManager.getDeviceId()}"
+                                "&deviceId=${deviceId}"
                     )
                 }
 
@@ -437,7 +439,7 @@ fun LoginScreen(
 
                 // If not logged in, go to start
                 if (!StorageManager.isLoggedIn()) {
-                    Thread.sleep(2000)
+                    //Thread.sleep(2000)
                     step = Steps.Start
                     return@LaunchedEffect
                 }
@@ -459,8 +461,21 @@ fun LoginScreen(
                         )
                     }
 
+                    // Add virtual card to user
+                    withContext(Dispatchers.IO) {
+                        LocalVirtualCardHandler.assignToUser()
+                    }
+
+                    // Go to main screen
                     onLoginSuccess()
                 } else {
+                    // Delete virtual card from user
+                    withContext(Dispatchers.IO) {
+                        LocalVirtualCardHandler.removeFromUser()
+                    }
+
+                    // Delete login info from storage and show login
+                    StorageManager.logout()
                     step = Steps.Start
                 }
             }
@@ -688,6 +703,11 @@ fun LoginScreen(
                                         loginApiResult!!.userData!!.surname,
                                         loginApiResult!!.userData!!.email
                                     )
+                                }
+
+                                // Add virtual card to user
+                                withContext(Dispatchers.IO) {
+                                    LocalVirtualCardHandler.assignToUser()
                                 }
 
                                 onLoginSuccess()
@@ -1099,6 +1119,11 @@ fun LoginScreen(
                                 registerApiResult = registerApiCall(userRegister)
                             }
                             if (registerApiResult?.success == true) {
+                                // Add virtual card to user
+                                withContext(Dispatchers.IO) {
+                                    LocalVirtualCardHandler.assignToUser()
+                                }
+
                                 onLoginSuccess()
                             } else {
                                 step = Steps.Error

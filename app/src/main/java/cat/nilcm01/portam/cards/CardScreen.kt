@@ -120,7 +120,8 @@ suspend fun getActiveUserTitleApiCall(): ActiveUserTitle {
                 name = title?.get("title_name")?.jsonPrimitive?.content,
                 zone_origin = title?.get("zone_origin")?.jsonPrimitive?.intOrNull,
                 uses_left = title?.get("uses_left")?.jsonPrimitive?.intOrNull,
-                expiration = title?.get("expiration")?.jsonPrimitive?.content
+                expiration = title?.get("expiration")?.jsonPrimitive?.content,
+                error = if (!success) jsonResponse["error"]?.jsonPrimitive?.content else null
             )
         } catch (e: Exception) {
             ActiveUserTitle(
@@ -250,8 +251,16 @@ fun CardScreen(
                 }
 
                 else if (step == CardSteps.Error) {
+                    var errorMsg = ""
+                    var error = false
+                    if (activeUserTitle?.error?.contains("No active title") == true) {
+                        errorMsg = "No tens cap títol actiu."
+                    } else {
+                        errorMsg = "Error en carregar el títol actiu."
+                        error = true
+                    }
                     Text(
-                        "Error en carregar el títol actiu.",
+                        errorMsg,
                         modifier = Modifier
                             .padding(top = PaddingSmall)
                             .fillMaxWidth(),
@@ -259,15 +268,17 @@ fun CardScreen(
                         fontStyle = FontStyle.Italic,
                         color = MaterialTheme.colorScheme.onSecondary,
                     )
-                    Text(
-                        "" + activeUserTitle?.error,
-                        modifier = Modifier
-                            .padding(top = PaddingSmall)
-                            .fillMaxWidth(),
-                        textAlign = TextAlign.Left,
-                        fontStyle = FontStyle.Italic,
-                        color = MaterialTheme.colorScheme.onSecondary,
-                    )
+                    if (error) {
+                        Text(
+                            "" + activeUserTitle?.error,
+                            modifier = Modifier
+                                .padding(top = PaddingSmall)
+                                .fillMaxWidth(),
+                            textAlign = TextAlign.Left,
+                            fontStyle = FontStyle.Italic,
+                            color = MaterialTheme.colorScheme.onSecondary,
+                        )
+                    }
                 }
 
                 else if (step == CardSteps.Success && activeUserTitle != null) {

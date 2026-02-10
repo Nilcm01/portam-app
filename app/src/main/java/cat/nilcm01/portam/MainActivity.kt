@@ -21,6 +21,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
@@ -45,8 +46,12 @@ import cat.nilcm01.portam.login.LoginScreen
 import cat.nilcm01.portam.profile.AssistanceScreen
 import cat.nilcm01.portam.profile.ReceiptsScreen
 import cat.nilcm01.portam.profile.SettingsScreen
+import cat.nilcm01.portam.utils.LocalVirtualCardHandler
 import cat.nilcm01.portam.utils.StorageKeys
 import cat.nilcm01.portam.utils.StorageManager
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 
 class MainActivity : ComponentActivity() {
@@ -141,6 +146,7 @@ private object Routes {
 @Composable
 fun MainScreen(nfcTagUid: String? = null) {
     val navController = rememberNavController()
+    val scope = rememberCoroutineScope()
 
     // Saber quina ruta estem per marcar la bottom bar
     val backStackEntry by navController.currentBackStackEntryAsState()
@@ -375,9 +381,14 @@ fun MainScreen(nfcTagUid: String? = null) {
                             navController.navigate(Routes.ProfileAssistance)
                         },
                         onLogout = {
-                            StorageManager.logout()
-                            navController.navigate(Routes.Login) {
-                                popUpTo(Routes.Home) { inclusive = true }
+                            scope.launch {
+                                withContext(Dispatchers.IO) {
+                                    LocalVirtualCardHandler.removeFromUser()
+                                }
+                                StorageManager.logout()
+                                navController.navigate(Routes.Login) {
+                                    popUpTo(Routes.Home) { inclusive = true }
+                                }
                             }
                         }
                     )
